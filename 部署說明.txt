@@ -1,0 +1,17 @@
+匿名信箱 PWA v1.13
+
+檔案：
+- index.html：網站本體
+- manifest.webmanifest：PWA 設定
+- service-worker.js：離線快取與系統推播
+- icons/：桌面 App 圖示（已使用指定照片）
+
+重要：
+1. PWA / 系統通知必須部署在 HTTPS 網址上。直接雙擊 index.html（file://）無法安裝 PWA，也無法使用 Push。
+2. 部署時請把這個資料夾內所有檔案依原結構一起上傳。
+3. 管理員登入後：後台 →「App / 通知」→ 開啟通知。
+4. iPhone / iPad：用 Safari 開啟網站 → 分享 → 加入主畫面 → 從桌面圖示開啟 → 再到後台開啟通知。
+5. Android / Chrome / Edge：符合安裝條件後，後台「App / 通知」會出現可用的安裝按鈕。
+6. 推播內容只顯示「你收到一則新的匿名訊息」，不顯示匿名投稿正文。
+
+Supabase 的 Web Push 後端與 messages INSERT 觸發已經接好。
