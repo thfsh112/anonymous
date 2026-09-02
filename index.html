@@ -2531,6 +2531,38 @@ body{
 .message-download-audit-row span{color:var(--muted);white-space:nowrap}
 @media(max-width:560px){.admin-user-name-row{grid-template-columns:1fr}.admin-user-name-row button{width:100%}.message-download-audit-row{align-items:flex-start;flex-direction:column;gap:2px}.message-download-audit-row span{white-space:normal}}
 
+
+/* ===== v1.18.2 帳號維護 ===== */
+.admin-user-edit-grid{
+  display:grid;
+  grid-template-columns:1fr 1.35fr;
+  gap:9px 10px;
+  margin-top:12px;
+}
+.admin-user-edit-grid .field{
+  margin:0;
+}
+.admin-user-edit-grid .field.password-field{
+  grid-column:1/-1;
+}
+.admin-user-edit-actions{
+  display:flex;
+  align-items:center;
+  justify-content:flex-end;
+  gap:8px;
+  margin-top:10px;
+}
+.admin-user-edit-actions .primary{
+  padding:10px 14px;
+  border-radius:12px;
+}
+@media(max-width:560px){
+  .admin-user-edit-grid{grid-template-columns:1fr}
+  .admin-user-edit-grid .field.password-field{grid-column:auto}
+  .admin-user-edit-actions{flex-direction:column;align-items:stretch}
+  .admin-user-edit-actions button{width:100%}
+}
+
 </style>
 </head>
 <body>
@@ -2716,7 +2748,7 @@ body{
 <section class="view" id="adminView"><div class="admin-shell">
 <div id="loginPanel" class="login-card"><h2>後台登入</h2><p class="sub">只有指定管理員帳號可以進入。</p><form id="loginForm"><div class="field"><label>Email</label><input id="loginEmail" type="email" autocomplete="username" required></div><div class="field"><label>密碼</label><input id="loginPassword" type="password" autocomplete="current-password" required></div><button class="primary full" id="loginBtn" type="submit" style="margin-top:15px">登入</button><div class="error hidden" id="loginError"></div></form><button class="secondary full" id="backPublicFromLogin" style="margin-top:9px;width:100%">回投稿頁</button></div>
 <div id="adminMain" class="hidden"><div class="admin-head"><div><h2>後台</h2><div class="small" id="adminIdentity"></div></div><div class="top-actions"><button class="secondary" id="backPublicBtn">前台</button><button class="secondary" id="logoutBtn">登出</button></div></div>
-<div class="tabs" id="mainTabs"><button class="tab active" data-main-tab="inbox">收件箱 <span class="badge hidden" id="unreadBadge">0</span></button><button class="tab" data-main-tab="settings">網站設定</button><button class="tab" data-main-tab="events">重要日程</button><button class="tab" data-main-tab="share">分享圖設定</button><button class="tab hidden" id="accountsTab" data-main-tab="accounts">帳號管理</button><button class="tab" data-main-tab="app">App / 通知</button></div>
+<div class="tabs" id="mainTabs"><button class="tab active" data-main-tab="inbox">收件箱 <span class="badge hidden" id="unreadBadge">0</span></button><button class="tab" data-main-tab="settings">網站設定</button><button class="tab" data-main-tab="events">重要日程</button><button class="tab" data-main-tab="share">分享圖設定</button><button class="tab" data-main-tab="app">App / 通知</button><button class="tab hidden" id="accountsTab" data-main-tab="accounts">帳號維護</button></div>
 <section id="inboxPanel"><div class="tabs" id="filterTabs"><button class="tab active" data-filter="all">全部</button><button class="tab" data-filter="unread">未讀</button><button class="tab" data-filter="favorite">收藏</button><button class="tab" data-filter="delete_request">刪文申請</button></div><div class="list" id="messageList"><div class="empty">載入中…</div></div></section>
 <section id="settingsPanel" class="hidden"><div class="panel"><div class="settings-grid">
 <div class="field"><label>前台 LOGO</label><div class="logo-setting"><div class="logo" id="adminLogo"><span class="logo-placeholder">LOGO</span></div><div><label class="secondary" for="logoFile" style="display:inline-block;cursor:pointer">選擇圖片</label><input id="logoFile" type="file" accept="image/png,image/jpeg,image/webp" class="hidden"><button class="secondary" id="removeLogoBtn" type="button" style="margin-left:5px">移除</button><div class="small" id="logoStatus" style="margin-top:8px">PNG / JPG / WEBP，最大 5 MB。</div></div></div></div>
@@ -2873,19 +2905,19 @@ body{
   <div class="panel account-admin-panel">
     <div class="account-admin-head">
       <div>
-        <div class="small">僅主帳號可新增、刪除或重設其他後台帳號密碼。</div>
-        <h3>帳號管理</h3>
+        <div class="small">僅主帳號可新增、修改或刪除後台登入帳號。</div>
+        <h3>帳號維護</h3>
       </div>
       <span class="admin-role-badge owner">OWNER ONLY</span>
     </div>
 
     <div class="account-security-note">
-      系統不會顯示或保存任何帳號的明碼密碼。主帳號可以設定初始密碼，之後如需變更，請使用「重設密碼」。
+      基於安全機制，既有密碼無法讀回或顯示。可直接設定新的密碼；密碼欄留空代表維持原密碼。
     </div>
 
     <div class="account-create-card">
       <h4>新增後台帳號</h4>
-      <div class="small">新增後可登入同一個後台，但不會看到「帳號管理」。</div>
+      <div class="small">新增後可登入同一個後台，但不會看到「帳號維護」。</div>
       <div class="account-create-grid">
         <div class="field">
           <label>管理員名稱</label>
@@ -2913,7 +2945,7 @@ body{
     <div>
       <div class="events-admin-head" style="margin-bottom:10px">
         <div>
-          <div class="small">主帳號可重設任何後台帳號的密碼。</div>
+          <div class="small">可修改管理員名稱、登入 Email 與密碼。</div>
           <h3 class="events-admin-title">管理員清單</h3>
         </div>
         <button class="secondary" id="reloadAdminUsersBtn" type="button">重新整理</button>
@@ -2967,7 +2999,7 @@ body{
 </section>
 </div></div></section>
 </main>
-<button class="version-entry" id="versionEntry" type="button" aria-label="版本資訊">v1.18.1</button>
+<button class="version-entry" id="versionEntry" type="button" aria-label="版本資訊">v1.18.2</button>
 <div class="toast" id="toast"></div>
 <dialog id="storyDialog">
   <div class="modal share-modal">
@@ -3611,6 +3643,8 @@ function adminManagerErrorText(code){
     invalid_password_length:"密碼需為 8～128 碼。",
     invalid_display_name:"管理員名稱需為 1～30 個字。",
     rename_failed:"管理員名稱更新失敗。",
+    name_update_failed:"管理員名稱更新失敗。",
+    account_update_failed:"帳號更新失敗。",
     email_exists:"這個 Email 已經有帳號。",
     create_failed:"新增帳號失敗。",
     grant_admin_failed:"帳號建立成功但權限設定失敗，已自動回復。",
@@ -3665,15 +3699,26 @@ async function loadAdminUsers(){
           </div>
           <span class="admin-role-badge ${owner?"owner":""}">${owner?"主帳號":"管理員"}</span>
         </div>
-        <div class="admin-user-name-row">
-          <input type="text" maxlength="30" data-admin-name="${escapeHtml(user.id)}" value="${escapeHtml(user.display_name||"管理員")}" placeholder="管理員名稱">
-          <button class="secondary" type="button" data-save-admin-name="${escapeHtml(user.id)}">儲存名稱</button>
+
+        <div class="admin-user-edit-grid">
+          <div class="field">
+            <label>管理員名稱</label>
+            <input type="text" maxlength="30" data-admin-name="${escapeHtml(user.id)}" value="${escapeHtml(user.display_name||"管理員")}" placeholder="管理員名稱">
+          </div>
+          <div class="field">
+            <label>登入帳號（Email）</label>
+            <input type="email" data-admin-email-input="${escapeHtml(user.id)}" value="${escapeHtml(user.email||"")}" autocomplete="off" placeholder="name@example.com">
+          </div>
+          <div class="field password-field">
+            <label>設定新密碼</label>
+            <input type="password" data-admin-password="${escapeHtml(user.id)}" autocomplete="new-password" placeholder="留空代表不變；新密碼至少 8 碼">
+          </div>
         </div>
-        <div class="admin-user-password-row">
-          <input type="password" data-admin-password="${escapeHtml(user.id)}" autocomplete="new-password" placeholder="輸入新的密碼（至少 8 碼）">
-          <button class="secondary" type="button" data-reset-admin-password="${escapeHtml(user.id)}">重設密碼</button>
+
+        <div class="admin-user-edit-actions">
+          ${owner?"":`<button class="secondary danger" type="button" data-delete-admin="${escapeHtml(user.id)}" data-admin-email="${escapeHtml(user.email||"")}">刪除帳號</button>`}
+          <button class="primary" type="button" data-save-admin-account="${escapeHtml(user.id)}">儲存修改</button>
         </div>
-        ${owner?"":`<div class="admin-user-actions"><button class="secondary danger" type="button" data-delete-admin="${escapeHtml(user.id)}" data-admin-email="${escapeHtml(user.email||"")}">刪除帳號</button></div>`}
       </article>`;
     }).join("");
   }catch(error){
@@ -3716,45 +3761,50 @@ $("#createAdminBtn").addEventListener("click",async()=>{
 $("#reloadAdminUsersBtn").addEventListener("click",loadAdminUsers);
 
 $("#adminUsersList").addEventListener("click",async e=>{
-  const nameBtn=e.target.closest("[data-save-admin-name]");
-  if(nameBtn){
-    const userId=nameBtn.dataset.saveAdminName;
-    const input=$(`[data-admin-name="${userId}"]`);
-    const displayName=(input?.value||"").trim();
+  const saveBtn=e.target.closest("[data-save-admin-account]");
+  if(saveBtn){
+    const userId=saveBtn.dataset.saveAdminAccount;
+    const nameInput=$(`[data-admin-name="${userId}"]`);
+    const emailInput=$(`[data-admin-email-input="${userId}"]`);
+    const passwordInput=$(`[data-admin-password="${userId}"]`);
+
+    const displayName=(nameInput?.value||"").trim();
+    const email=(emailInput?.value||"").trim();
+    const password=passwordInput?.value||"";
+
     if(!displayName)return toast("管理員名稱不能留空");
     if(displayName.length>30)return toast("管理員名稱最多 30 個字");
-    nameBtn.disabled=true;
-    nameBtn.textContent="儲存中…";
-    try{
-      await callAdminManager("rename",{user_id:userId,display_name:displayName});
-      const {data:{user}}=await supabase.auth.getUser();
-      if(user?.id===userId){
-        currentAdminName=displayName;
-        $("#adminIdentity").textContent=`${currentAdminName}管理員 · ${user.email||"管理員"}${currentAdminRole==="owner"?" · Owner":""}`;
-      }
-      toast("管理員名稱已更新");
-      await loadAdminUsers();
-    }catch(error){toast(adminManagerErrorText(error.code))}
-    nameBtn.disabled=false;
-    nameBtn.textContent="儲存名稱";
-    return;
-  }
+    if(!/^\S+@\S+\.\S+$/.test(email))return toast("Email 格式不正確");
+    if(password&&password.length<8)return toast("新密碼至少需要 8 碼");
 
-  const resetBtn=e.target.closest("[data-reset-admin-password]");
-  if(resetBtn){
-    const userId=resetBtn.dataset.resetAdminPassword;
-    const input=$(`[data-admin-password="${userId}"]`);
-    const password=input?.value||"";
-    if(password.length<8)return toast("新密碼至少需要 8 碼");
-    resetBtn.disabled=true;
-    resetBtn.textContent="重設中…";
+    saveBtn.disabled=true;
+    saveBtn.textContent="儲存中…";
     try{
-      await callAdminManager("reset_password",{user_id:userId,password});
-      input.value="";
-      toast("密碼已重設");
-    }catch(error){toast(adminManagerErrorText(error.code))}
-    resetBtn.disabled=false;
-    resetBtn.textContent="重設密碼";
+      await callAdminManager("update",{
+        user_id:userId,
+        display_name:displayName,
+        email,
+        password
+      });
+
+      const {data:{user:currentUser}}=await supabase.auth.getUser();
+      if(currentUser?.id===userId){
+        try{await supabase.auth.refreshSession()}catch{}
+        const me=await callAdminManager("me");
+        currentAdminName=(me.display_name||displayName||"管理員").trim()||"管理員";
+        currentAdminRole=me.role||currentAdminRole;
+        $("#adminIdentity").textContent=`${currentAdminName}管理員 · ${me.email||email}${currentAdminRole==="owner"?" · Owner":""}`;
+      }
+
+      if(passwordInput)passwordInput.value="";
+      toast("帳號資料已更新");
+      await loadAdminUsers();
+    }catch(error){
+      toast(adminManagerErrorText(error.code));
+    }finally{
+      saveBtn.disabled=false;
+      saveBtn.textContent="儲存修改";
+    }
     return;
   }
 
