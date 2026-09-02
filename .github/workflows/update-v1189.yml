@@ -1,0 +1,103 @@
+name: Update anonymous to v1.18.9
+on:
+  push:
+    paths:
+      - '.github/workflows/update-v1189.yml'
+permissions:
+  contents: write
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Apply copy plain text update
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('index.html')
+          s=p.read_text(encoding='utf-8')
+
+          def need(cond,msg):
+              if not cond:
+                  raise SystemExit(msg)
+
+          need('>v1.18.8</button>' in s,'v1.18.8 version marker missing')
+          s=s.replace('>v1.18.8</button>','>v1.18.9</button>',1)
+
+          old_actions='''<div class="actions">${m.image_path?'<button class="mini" data-action="image">查看／下載圖片</button>':""}<button class="mini" data-action="story">製作分享圖</button><button class="mini" data-action="favorite">${m.is_favorite?"取消收藏":"收藏"}</button><button class="mini danger" data-action="delete">${m.deletion_requested_at?"刪除投稿":"刪除"}</button></div>'''
+          new_actions='''<div class="actions">${m.image_path?'<button class="mini" data-action="image">查看／下載圖片</button>':""}<button class="mini" data-action="story">製作分享圖</button><button class="mini" data-action="copy">複製純文字</button><button class="mini" data-action="favorite">${m.is_favorite?"取消收藏":"收藏"}</button><button class="mini danger" data-action="delete">${m.deletion_requested_at?"刪除投稿":"刪除"}</button></div>'''
+          need(old_actions in s,'message actions marker missing')
+          s=s.replace(old_actions,new_actions,1)
+
+          marker='''function renderMessages(){'''
+          helper='''async function copySubmissionPlainText(text){
+  const value=String(text??"");
+  try{
+    if(navigator.clipboard?.writeText){
+      await navigator.clipboard.writeText(value);
+    }else{
+      throw new Error("clipboard_unavailable");
+    }
+  }catch{
+    const ta=document.createElement("textarea");
+    ta.value=value;
+    ta.setAttribute("readonly","");
+    ta.style.position="fixed";
+    ta.style.opacity="0";
+    ta.style.pointerEvents="none";
+    document.body.appendChild(ta);
+    ta.focus();
+    ta.select();
+    document.execCommand("copy");
+    ta.remove();
+  }
+  toast("已複製純文字");
+}
+'''
+          need(marker in s,'renderMessages marker missing')
+          s=s.replace(marker,helper+marker,1)
+
+          old_handler='''    if(action==="favorite")await toggleFavorite(m);'''
+          new_handler='''    if(action==="copy")await copySubmissionPlainText(m.content);
+    if(action==="favorite")await toggleFavorite(m);'''
+          need(old_handler in s,'action handler marker missing')
+          s=s.replace(old_handler,new_handler,1)
+
+          p.write_text(s,encoding='utf-8')
+          PY
+      - name: Validate JavaScript
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+          s=Path('index.html').read_text(encoding='utf-8')
+          m=re.search(r'<script type="module">(.*?)</script>',s,re.S)
+          if not m:
+              raise SystemExit('module script missing')
+          js=m.group(1)
+          js=re.sub(r'import\s+\{\s*createClient\s*\}\s+from\s+"[^"]+";','const createClient=(...args)=>({});',js,count=1)
+          Path('/tmp/check.js').write_text(js,encoding='utf-8')
+          PY
+          node --check /tmp/check.js
+      - name: Update PWA cache
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('service-worker.js')
+          s=p.read_text(encoding='utf-8')
+          if 'anonymous-mailbox-v1.18.8' not in s:
+              raise SystemExit('service worker version marker missing')
+          p.write_text(s.replace('anonymous-mailbox-v1.18.8','anonymous-mailbox-v1.18.9',1),encoding='utf-8')
+          PY
+      - name: Commit v1.18.9
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git rm .github/workflows/update-v1189.yml
+          git add index.html service-worker.js
+          git commit -m "Update anonymous mailbox to v1.18.9"
+          git push
