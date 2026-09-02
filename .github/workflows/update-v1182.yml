@@ -1,0 +1,204 @@
+name: Update anonymous to v1.18.2
+on:
+  push:
+    paths:
+      - '.github/workflows/update-v1182.yml'
+permissions:
+  contents: write
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Patch index.html
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+          p=Path('index.html')
+          s=p.read_text(encoding='utf-8')
+
+          def req(old,new,count=1):
+              global s
+              if old not in s:
+                  raise SystemExit('missing marker: '+old[:120])
+              s=s.replace(old,new,count)
+
+          req('>v1.18.1</button>','>v1.18.2</button>')
+
+          old_tabs='<div class="tabs" id="mainTabs"><button class="tab active" data-main-tab="inbox">收件箱 <span class="badge hidden" id="unreadBadge">0</span></button><button class="tab" data-main-tab="settings">網站設定</button><button class="tab" data-main-tab="events">重要日程</button><button class="tab" data-main-tab="share">分享圖設定</button><button class="tab hidden" id="accountsTab" data-main-tab="accounts">帳號管理</button><button class="tab" data-main-tab="app">App / 通知</button></div>'
+          new_tabs='<div class="tabs" id="mainTabs"><button class="tab active" data-main-tab="inbox">收件箱 <span class="badge hidden" id="unreadBadge">0</span></button><button class="tab" data-main-tab="settings">網站設定</button><button class="tab" data-main-tab="events">重要日程</button><button class="tab" data-main-tab="share">分享圖設定</button><button class="tab" data-main-tab="app">App / 通知</button><button class="tab hidden" id="accountsTab" data-main-tab="accounts">帳號維護</button></div>'
+          req(old_tabs,new_tabs)
+
+          req('僅主帳號可新增、刪除或重設其他後台帳號密碼。','僅主帳號可新增、修改或刪除後台登入帳號。')
+          req('<h3>帳號管理</h3>','<h3>帳號維護</h3>')
+          req('系統不會顯示或保存任何帳號的明碼密碼。主帳號可以設定初始密碼，之後如需變更，請使用「重設密碼」。','基於安全機制，既有密碼無法讀回或顯示。可直接設定新的密碼；密碼欄留空代表維持原密碼。')
+          req('新增後可登入同一個後台，但不會看到「帳號管理」。','新增後可登入同一個後台，但不會看到「帳號維護」。')
+          req('主帳號可重設任何後台帳號的密碼。','可修改管理員名稱、登入 Email 與密碼。')
+
+          css='''
+/* ===== v1.18.2 帳號維護 ===== */
+.admin-user-edit-grid{display:grid;grid-template-columns:1fr 1.35fr;gap:9px 10px;margin-top:12px}
+.admin-user-edit-grid .field{margin:0}
+.admin-user-edit-grid .field.password-field{grid-column:1/-1}
+.admin-user-edit-actions{display:flex;align-items:center;justify-content:flex-end;gap:8px;margin-top:10px}
+.admin-user-edit-actions .primary{padding:10px 14px;border-radius:12px}
+@media(max-width:560px){
+  .admin-user-edit-grid{grid-template-columns:1fr}
+  .admin-user-edit-grid .field.password-field{grid-column:auto}
+  .admin-user-edit-actions{flex-direction:column;align-items:stretch}
+  .admin-user-edit-actions button{width:100%}
+}
+'''
+          if '/* ===== v1.18.2 帳號維護 ===== */' not in s:
+              req('</style>',css+'\n</style>')
+
+          req('rename_failed:"管理員名稱更新失敗。",','rename_failed:"管理員名稱更新失敗。",\n    name_update_failed:"管理員名稱更新失敗。",\n    account_update_failed:"帳號更新失敗。",')
+
+          a=s.index('async function loadAdminUsers(){')
+          b=s.index('\n$("#createAdminBtn").addEventListener',a)
+          new_load=r'''async function loadAdminUsers(){
+  const list=$("#adminUsersList");
+  if(currentAdminRole!=="owner"){
+    list.innerHTML='<div class="empty">只有主帳號可以查看帳號清單。</div>';
+    return;
+  }
+  list.innerHTML='<div class="empty">載入中…</div>';
+  try{
+    const result=await callAdminManager("list");
+    const users=result.users||[];
+    if(!users.length){list.innerHTML='<div class="empty">目前沒有管理員帳號。</div>';return}
+    list.innerHTML=users.map(user=>{
+      const owner=user.role==="owner";
+      return `<article class="admin-user-card" data-admin-user="${escapeHtml(user.id)}">
+        <div class="admin-user-top">
+          <div>
+            <div class="admin-user-name">${escapeHtml(user.display_name||"管理員")}管理員</div>
+            <div class="admin-user-email">${escapeHtml(user.email||"未設定 Email")}</div>
+            <div class="admin-user-meta">建立：${escapeHtml(formatAdminTimestamp(user.created_at))}<br>最近登入：${escapeHtml(formatAdminTimestamp(user.last_sign_in_at))}</div>
+          </div>
+          <span class="admin-role-badge ${owner?"owner":""}">${owner?"主帳號":"管理員"}</span>
+        </div>
+        <div class="admin-user-edit-grid">
+          <div class="field">
+            <label>管理員名稱</label>
+            <input type="text" maxlength="30" data-admin-name="${escapeHtml(user.id)}" value="${escapeHtml(user.display_name||"管理員")}" placeholder="管理員名稱">
+          </div>
+          <div class="field">
+            <label>登入帳號（Email）</label>
+            <input type="email" data-admin-email-input="${escapeHtml(user.id)}" value="${escapeHtml(user.email||"")}" autocomplete="off" placeholder="name@example.com">
+          </div>
+          <div class="field password-field">
+            <label>設定新密碼</label>
+            <input type="password" data-admin-password="${escapeHtml(user.id)}" autocomplete="new-password" placeholder="留空代表不變；新密碼至少 8 碼">
+          </div>
+        </div>
+        <div class="admin-user-edit-actions">
+          ${owner?"":`<button class="secondary danger" type="button" data-delete-admin="${escapeHtml(user.id)}" data-admin-email="${escapeHtml(user.email||"")}">刪除帳號</button>`}
+          <button class="primary" type="button" data-save-admin-account="${escapeHtml(user.id)}">儲存修改</button>
+        </div>
+      </article>`;
+    }).join("");
+  }catch(error){
+    console.error("load_admin_users_failed",error);
+    list.innerHTML=`<div class="empty">${escapeHtml(adminManagerErrorText(error.code))}</div>`;
+  }
+}
+'''
+          s=s[:a]+new_load+s[b:]
+
+          a=s.index('$("#adminUsersList").addEventListener("click",async e=>{')
+          b=s.index('\nasync function openAdmin(){',a)
+          new_handler=r'''$("#adminUsersList").addEventListener("click",async e=>{
+  const saveBtn=e.target.closest("[data-save-admin-account]");
+  if(saveBtn){
+    const userId=saveBtn.dataset.saveAdminAccount;
+    const nameInput=$(`[data-admin-name="${userId}"]`);
+    const emailInput=$(`[data-admin-email-input="${userId}"]`);
+    const passwordInput=$(`[data-admin-password="${userId}"]`);
+    const displayName=(nameInput?.value||"").trim();
+    const email=(emailInput?.value||"").trim();
+    const password=passwordInput?.value||"";
+    if(!displayName)return toast("管理員名稱不能留空");
+    if(displayName.length>30)return toast("管理員名稱最多 30 個字");
+    if(!/^\S+@\S+\.\S+$/.test(email))return toast("Email 格式不正確");
+    if(password&&password.length<8)return toast("新密碼至少需要 8 碼");
+    saveBtn.disabled=true;
+    saveBtn.textContent="儲存中…";
+    try{
+      await callAdminManager("update",{user_id:userId,display_name:displayName,email,password});
+      const {data:{user:currentUser}}=await supabase.auth.getUser();
+      if(currentUser?.id===userId){
+        try{await supabase.auth.refreshSession()}catch{}
+        const me=await callAdminManager("me");
+        currentAdminName=(me.display_name||displayName||"管理員").trim()||"管理員";
+        currentAdminRole=me.role||currentAdminRole;
+        $("#adminIdentity").textContent=`${currentAdminName}管理員 · ${me.email||email}${currentAdminRole==="owner"?" · Owner":""}`;
+      }
+      if(passwordInput)passwordInput.value="";
+      toast("帳號資料已更新");
+      await loadAdminUsers();
+    }catch(error){
+      toast(adminManagerErrorText(error.code));
+    }finally{
+      saveBtn.disabled=false;
+      saveBtn.textContent="儲存修改";
+    }
+    return;
+  }
+  const deleteBtn=e.target.closest("[data-delete-admin]");
+  if(deleteBtn){
+    const userId=deleteBtn.dataset.deleteAdmin;
+    const email=deleteBtn.dataset.adminEmail||"這個帳號";
+    if(!confirm(`確定要刪除 ${email}？\n刪除後將無法登入後台。`))return;
+    deleteBtn.disabled=true;
+    try{
+      await callAdminManager("delete",{user_id:userId});
+      toast("帳號已刪除");
+      await loadAdminUsers();
+    }catch(error){
+      toast(adminManagerErrorText(error.code));
+      deleteBtn.disabled=false;
+    }
+  }
+});
+'''
+          s=s[:a]+new_handler+s[b:]
+
+          p.write_text(s,encoding='utf-8')
+          PY
+      - name: Update service worker cache
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('service-worker.js')
+          s=p.read_text(encoding='utf-8')
+          if 'anonymous-mailbox-v1.18.1' not in s:
+              raise SystemExit('service worker version marker missing')
+          p.write_text(s.replace('anonymous-mailbox-v1.18.1','anonymous-mailbox-v1.18.2'),encoding='utf-8')
+          PY
+      - name: Validate JavaScript
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+          s=Path('index.html').read_text(encoding='utf-8')
+          m=re.search(r'<script type="module">(.*?)</script>',s,re.S)
+          if not m: raise SystemExit('module script missing')
+          js=m.group(1)
+          js=re.sub(r'import\s+\{\s*createClient\s*\}\s+from\s+"[^"]+";','const createClient=(...args)=>({});',js,count=1)
+          Path('/tmp/check.js').write_text(js,encoding='utf-8')
+          PY
+          node --check /tmp/check.js
+      - name: Commit update
+        shell: bash
+        run: |
+          git config user.name "thfsh112"
+          git config user.email "marsmars1000507@gmail.com"
+          git rm .github/workflows/update-v1182.yml
+          git add index.html service-worker.js
+          git commit -m "Update anonymous mailbox to v1.18.2"
+          git push
