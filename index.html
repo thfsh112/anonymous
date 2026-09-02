@@ -3203,7 +3203,7 @@ body{
 </section>
 </div></div></section>
 </main>
-<button class="version-entry" id="versionEntry" type="button" aria-label="版本資訊">v1.18.7</button>
+<button class="version-entry" id="versionEntry" type="button" aria-label="版本資訊">v1.18.8</button>
 <div class="toast" id="toast"></div>
 <dialog id="storyDialog">
   <div class="modal share-modal">
@@ -3831,6 +3831,19 @@ function showView(name){
     resetAdminBubbles();
   }
 }
+let bubbleDisableTapCount=0;
+let bubbleDisableTapTimer=null;
+$("#brandTitle")?.addEventListener("click",()=>{
+  bubbleDisableTapCount++;
+  clearTimeout(bubbleDisableTapTimer);
+  if(bubbleDisableTapCount>=5){
+    bubbleDisableTapCount=0;
+    permanentlyDisableAdminBubbles();
+    return;
+  }
+  bubbleDisableTapTimer=setTimeout(()=>{bubbleDisableTapCount=0},2200);
+});
+
 let versionTapCount=0;
 let versionTapTimer=null;
 $("#versionEntry").addEventListener("click",async()=>{
@@ -4143,6 +4156,16 @@ const ADMIN_BUBBLE_MIN_SCALE=.2;
 const ADMIN_BUBBLE_MAX_SCALE=2.25;
 const ADMIN_BUBBLE_MAX_COUNT=20;
 const ADMIN_BUBBLE_BASE_SIZE=116;
+const ADMIN_BUBBLE_DISABLED_KEY="anonymous-mailbox-admin-bubbles-disabled-v1";
+
+function adminBubblesDisabled(){
+  try{return localStorage.getItem(ADMIN_BUBBLE_DISABLED_KEY)==="1"}catch{return false}
+}
+function permanentlyDisableAdminBubbles(){
+  try{localStorage.setItem(ADMIN_BUBBLE_DISABLED_KEY,"1")}catch{}
+  resetAdminBubbles();
+  toast("這台裝置的泡泡已永久關閉");
+}
 
 let adminBubbleState={
   running:false,
@@ -4339,6 +4362,7 @@ function tickAdminBubbles(ts){
 }
 function startAdminBubbles(){
   resetAdminBubbles();
+  if(adminBubblesDisabled())return;
 
   const zone=bubbleZone();
   if(!zone)return;
