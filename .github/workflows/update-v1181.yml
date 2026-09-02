@@ -1,0 +1,40 @@
+name: Update anonymous to v1.18.1
+on:
+  push:
+    paths:
+      - '.github/workflows/update-v1181.yml'
+permissions:
+  contents: write
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Patch index.html
+        shell: bash
+        run: |
+          echo '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' | base64 -d | gzip -d > /tmp/v1181.patch
+          git apply --unidiff-zero /tmp/v1181.patch
+      - name: Update service worker cache
+        run: sed -i 's/anonymous-mailbox-v1.18.0/anonymous-mailbox-v1.18.1/g' service-worker.js
+      - name: Validate JavaScript
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+          s=Path('index.html').read_text(encoding='utf-8')
+          m=re.search(r'<script type="module">(.*?)</script>',s,re.S)
+          if not m: raise SystemExit('module script not found')
+          js=m.group(1)
+          js=re.sub(r'import\s+\{\s*createClient\s*\}\s+from\s+"[^"]+";', 'const createClient=(...args)=>({});', js, count=1)
+          Path('/tmp/check.js').write_text(js,encoding='utf-8')
+          PY
+          node --check /tmp/check.js
+      - name: Commit update
+        run: |
+          git config user.name 'thfsh112'
+          git config user.email 'marsmars1000507@gmail.com'
+          rm -f .github/workflows/update-v1181.yml
+          git add index.html service-worker.js .github/workflows/update-v1181.yml
+          git commit -m 'Update anonymous mailbox to v1.18.1'
+          git push
