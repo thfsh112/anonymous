@@ -1,4 +1,4 @@
-const CACHE_NAME="anonymous-mailbox-v1.18.0";
+const CACHE_NAME="anonymous-mailbox-v1.18.1";
 const APP_SHELL=[
   "./",
   "./index.html",
