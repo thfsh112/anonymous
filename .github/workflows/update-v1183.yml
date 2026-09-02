@@ -1,0 +1,258 @@
+name: Update anonymous to v1.18.3
+on:
+  push:
+    paths:
+      - '.github/workflows/update-v1183.yml'
+permissions:
+  contents: write
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Patch index.html
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+          p=Path('index.html')
+          s=p.read_text(encoding='utf-8')
+
+          def req(old,new,count=1):
+              global s
+              if old not in s:
+                  raise SystemExit('missing marker: '+old[:160])
+              s=s.replace(old,new,count)
+
+          req('>v1.18.2</button>','>v1.18.3</button>')
+
+          old_tabs='<div class="tabs" id="mainTabs"><button class="tab active" data-main-tab="inbox">收件箱 <span class="badge hidden" id="unreadBadge">0</span></button><button class="tab" data-main-tab="settings">網站設定</button><button class="tab" data-main-tab="events">重要日程</button><button class="tab" data-main-tab="share">分享圖設定</button><button class="tab" data-main-tab="app">App / 通知</button><button class="tab hidden" id="accountsTab" data-main-tab="accounts">帳號維護</button></div>'
+          new_tabs='<div class="tabs" id="mainTabs"><button class="tab active" data-main-tab="inbox">收件箱 <span class="badge hidden" id="unreadBadge">0</span></button><button class="tab" data-main-tab="settings">網站設定</button><button class="tab" data-main-tab="events">重要日程</button><button class="tab" data-main-tab="share">分享圖設定</button><button class="tab" data-main-tab="app">App / 通知</button><button class="tab" id="accountSelfTab" data-main-tab="accountSelf">帳號維護</button><button class="tab hidden" id="accountsTab" data-main-tab="accounts">帳號管理</button></div>'
+          req(old_tabs,new_tabs)
+
+          marker='<section id="accountsPanel" class="hidden">'
+          self_panel=r'''<section id="accountSelfPanel" class="hidden">
+  <div class="panel account-self-panel">
+    <div class="account-admin-head">
+      <div>
+        <div class="small">每位管理員只能修改自己的登入資料。</div>
+        <h3>帳號維護</h3>
+      </div>
+      <span class="admin-role-badge">MY ACCOUNT</span>
+    </div>
+
+    <div class="account-security-note">
+      可修改自己的管理員名稱、登入 Email 與密碼。既有密碼無法讀回；若不需要變更密碼，密碼欄請留空。
+    </div>
+
+    <div class="account-self-card">
+      <div class="account-self-grid">
+        <div class="field">
+          <label>管理員名稱</label>
+          <input id="selfAdminName" type="text" maxlength="30" autocomplete="off" placeholder="管理員名稱">
+        </div>
+        <div class="field">
+          <label>登入帳號（Email）</label>
+          <input id="selfAdminEmail" type="email" autocomplete="username" placeholder="name@example.com">
+        </div>
+        <div class="field">
+          <label>設定新密碼</label>
+          <input id="selfAdminPassword" type="password" autocomplete="new-password" placeholder="留空代表不變；至少 8 碼">
+        </div>
+        <div class="field">
+          <label>再次輸入新密碼</label>
+          <input id="selfAdminPasswordConfirm" type="password" autocomplete="new-password" placeholder="再次輸入；不改密碼可留空">
+        </div>
+      </div>
+      <div class="account-create-actions">
+        <span class="status-line" id="selfAccountStatus"></span>
+        <button class="primary" id="saveSelfAccountBtn" type="button">儲存我的帳號</button>
+      </div>
+    </div>
+  </div>
+</section>
+
+'''
+          req(marker,self_panel+marker)
+
+          req('<div class="small">僅主帳號可新增、修改或刪除後台登入帳號。</div>\n        <h3>帳號維護</h3>', '<div class="small">僅主帳號可新增、修改或刪除所有後台登入帳號。</div>\n        <h3>帳號管理</h3>')
+          req('新增後可登入同一個後台，但不會看到「帳號維護」。','新增後可登入同一個後台，也能使用「帳號維護」修改自己的資料；只有主帳號會看到「帳號管理」。')
+
+          css=r'''
+/* ===== v1.18.3 帳號維護 / 帳號管理 ===== */
+.account-self-panel{max-width:780px;margin:0 auto}
+.account-self-card{margin-top:16px;padding:16px;border:1px solid var(--line);border-radius:18px;background:#fff}
+.account-self-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.account-self-grid .field{margin:0}
+@media(max-width:620px){.account-self-grid{grid-template-columns:1fr}}
+'''
+          req('</style>',css+'\n</style>')
+
+          s=s.replace('PNG / JPG / WEBP，最多 5 MB','PNG / JPG / WEBP，最多 15 MB')
+          s=s.replace('PNG / JPG / WEBP，最大 5 MB。','PNG / JPG / WEBP，最大 15 MB。')
+          s=s.replace('file.size>5*1024*1024','file.size>15*1024*1024')
+          s=s.replace('圖片不能超過 5 MB','圖片不能超過 15 MB')
+
+          old_role='''async function loadAdminRole(){
+  currentAdminRole=null;
+  currentAdminName="管理員";
+  $("#accountsTab").classList.add("hidden");
+  try{
+    const me=await callAdminManager("me");
+    currentAdminRole=me.role||null;
+    currentAdminName=(me.display_name||"管理員").trim()||"管理員";
+    $("#accountsTab").classList.toggle("hidden",currentAdminRole!=="owner");
+    return currentAdminRole;
+  }catch(error){
+    console.warn("load_admin_role_failed",error);
+    return null;
+  }
+}'''
+          new_role='''async function loadAdminRole(){
+  currentAdminRole=null;
+  currentAdminName="管理員";
+  $("#accountsTab").classList.add("hidden");
+  try{
+    const me=await callAdminManager("me");
+    currentAdminRole=me.role||null;
+    currentAdminName=(me.display_name||"管理員").trim()||"管理員";
+    $("#accountsTab").classList.toggle("hidden",currentAdminRole!=="owner");
+    fillSelfAccountForm(me);
+    return currentAdminRole;
+  }catch(error){
+    console.warn("load_admin_role_failed",error);
+    return null;
+  }
+}
+
+function fillSelfAccountForm(me){
+  if(!me)return;
+  $("#selfAdminName").value=(me.display_name||currentAdminName||"管理員").trim();
+  $("#selfAdminEmail").value=me.email||"";
+  $("#selfAdminPassword").value="";
+  $("#selfAdminPasswordConfirm").value="";
+}
+
+async function loadSelfAccount(){
+  try{
+    const me=await callAdminManager("me");
+    currentAdminRole=me.role||currentAdminRole;
+    currentAdminName=(me.display_name||currentAdminName||"管理員").trim()||"管理員";
+    fillSelfAccountForm(me);
+    return me;
+  }catch(error){
+    console.error("load_self_account_failed",error);
+    $("#selfAccountStatus").textContent=adminManagerErrorText(error.code);
+    return null;
+  }
+}
+
+$("#saveSelfAccountBtn").addEventListener("click",async()=>{
+  const displayName=$("#selfAdminName").value.trim();
+  const email=$("#selfAdminEmail").value.trim();
+  const password=$("#selfAdminPassword").value;
+  const confirmPassword=$("#selfAdminPasswordConfirm").value;
+  const status=$("#selfAccountStatus");
+  if(!displayName)return toast("請輸入管理員名稱");
+  if(displayName.length>30)return toast("管理員名稱最多 30 個字");
+  if(!/^\\S+@\\S+\\.\\S+$/.test(email))return toast("Email 格式不正確");
+  if(password&&password.length<8)return toast("新密碼至少需要 8 碼");
+  if(password!==confirmPassword)return toast("兩次輸入的新密碼不一致");
+  const btn=$("#saveSelfAccountBtn");
+  btn.disabled=true;
+  btn.textContent="儲存中…";
+  status.textContent="儲存中…";
+  try{
+    const result=await callAdminManager("update_self",{display_name:displayName,email,password});
+    currentAdminName=(result.display_name||displayName||"管理員").trim()||"管理員";
+    currentAdminRole=result.role||currentAdminRole;
+    $("#adminIdentity").textContent=`${currentAdminName}管理員 · ${result.email||email}${currentAdminRole==="owner"?" · Owner":""}`;
+    $("#selfAdminPassword").value="";
+    $("#selfAdminPasswordConfirm").value="";
+    status.textContent="帳號資料已更新。";
+    toast("我的帳號已更新");
+  }catch(error){
+    status.textContent=adminManagerErrorText(error.code);
+    toast(adminManagerErrorText(error.code));
+  }finally{
+    btn.disabled=false;
+    btn.textContent="儲存我的帳號";
+  }
+});'''
+          req(old_role,new_role)
+
+          req('''  $("#shareSettingsPanel").classList.toggle("hidden",tab!=="share");
+  $("#accountsPanel").classList.toggle("hidden",tab!=="accounts");
+  $("#appPanel").classList.toggle("hidden",tab!=="app");''','''  $("#shareSettingsPanel").classList.toggle("hidden",tab!=="share");
+  $("#accountSelfPanel").classList.toggle("hidden",tab!=="accountSelf");
+  $("#accountsPanel").classList.toggle("hidden",tab!=="accounts");
+  $("#appPanel").classList.toggle("hidden",tab!=="app");''')
+
+          req('''    share:$("#shareSettingsPanel .panel"),
+    accounts:$("#accountsPanel .panel"),
+    app:$("#appPanel .panel")''','''    share:$("#shareSettingsPanel .panel"),
+    accountSelf:$("#accountSelfPanel .panel"),
+    accounts:$("#accountsPanel .panel"),
+    app:$("#appPanel .panel")''')
+
+          req('''  if(tab==="accounts"){
+    if(currentAdminRole!=="owner"){
+      toast("只有主帳號可以管理帳號");
+      return;
+    }
+    await loadAdminUsers();
+  }
+  if(tab==="app"){
+    await refreshPwaPanel();
+  }''','''  if(tab==="accountSelf"){
+    $("#selfAccountStatus").textContent="";
+    await loadSelfAccount();
+  }
+  if(tab==="accounts"){
+    if(currentAdminRole!=="owner"){
+      toast("只有主帳號可以管理所有帳號");
+      return;
+    }
+    await loadAdminUsers();
+  }
+  if(tab==="app"){
+    await refreshPwaPanel();
+  }''')
+
+          p.write_text(s,encoding='utf-8')
+          PY
+      - name: Update service worker cache
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('service-worker.js')
+          s=p.read_text(encoding='utf-8')
+          if 'anonymous-mailbox-v1.18.2' not in s:
+              raise SystemExit('service worker version marker missing')
+          p.write_text(s.replace('anonymous-mailbox-v1.18.2','anonymous-mailbox-v1.18.3'),encoding='utf-8')
+          PY
+      - name: Validate JavaScript
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+          s=Path('index.html').read_text(encoding='utf-8')
+          m=re.search(r'<script type="module">(.*?)</script>',s,re.S)
+          if not m: raise SystemExit('module script missing')
+          js=m.group(1)
+          js=re.sub(r'import\s+\{\s*createClient\s*\}\s+from\s+"[^"]+";','const createClient=(...args)=>({});',js,count=1)
+          Path('/tmp/check.js').write_text(js,encoding='utf-8')
+          PY
+          node --check /tmp/check.js
+      - name: Commit update
+        shell: bash
+        run: |
+          git config user.name "thfsh112"
+          git config user.email "marsmars1000507@gmail.com"
+          git rm .github/workflows/update-v1183.yml
+          git add index.html service-worker.js
+          git commit -m "Update anonymous mailbox to v1.18.3"
+          git push
