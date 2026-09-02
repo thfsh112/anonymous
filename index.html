@@ -2569,6 +2569,14 @@ body{
 #mainTabs .tab{flex:0 0 auto}
 #accountsTab:not(.hidden){display:inline-flex}
 
+
+/* ===== v1.18.4 帳號維護 / 帳號管理 ===== */
+.account-self-panel{max-width:780px;margin:0 auto}
+.account-self-card{margin-top:16px;padding:16px;border:1px solid var(--line);border-radius:18px;background:#fff}
+.account-self-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.account-self-grid .field{margin:0}
+@media(max-width:620px){.account-self-grid{grid-template-columns:1fr}}
+
 </style>
 </head>
 <body>
@@ -2665,7 +2673,7 @@ body{
               <span class="message-image-plus">＋</span>
               <span>
                 <strong>新增圖片</strong>
-                <small>PNG / JPG / WEBP，最多 5 MB</small>
+                <small>PNG / JPG / WEBP，最多 15 MB</small>
               </span>
             </button>
 
@@ -2754,10 +2762,10 @@ body{
 <section class="view" id="adminView"><div class="admin-shell">
 <div id="loginPanel" class="login-card"><h2>後台登入</h2><p class="sub">只有指定管理員帳號可以進入。</p><form id="loginForm"><div class="field"><label>Email</label><input id="loginEmail" type="email" autocomplete="username" required></div><div class="field"><label>密碼</label><input id="loginPassword" type="password" autocomplete="current-password" required></div><button class="primary full" id="loginBtn" type="submit" style="margin-top:15px">登入</button><div class="error hidden" id="loginError"></div></form><button class="secondary full" id="backPublicFromLogin" style="margin-top:9px;width:100%">回投稿頁</button></div>
 <div id="adminMain" class="hidden"><div class="admin-head"><div><h2>後台</h2><div class="small" id="adminIdentity"></div></div><div class="top-actions"><button class="secondary" id="backPublicBtn">前台</button><button class="secondary" id="logoutBtn">登出</button></div></div>
-<div class="tabs" id="mainTabs"><button class="tab active" data-main-tab="inbox">收件箱 <span class="badge hidden" id="unreadBadge">0</span></button><button class="tab" data-main-tab="settings">網站設定</button><button class="tab" data-main-tab="events">重要日程</button><button class="tab" data-main-tab="share">分享圖設定</button><button class="tab" data-main-tab="app">App / 通知</button><button class="tab hidden" id="accountsTab" data-main-tab="accounts">帳號維護</button></div>
+<div class="tabs" id="mainTabs"><button class="tab active" data-main-tab="inbox">收件箱 <span class="badge hidden" id="unreadBadge">0</span></button><button class="tab" data-main-tab="settings">網站設定</button><button class="tab" data-main-tab="events">重要日程</button><button class="tab" data-main-tab="share">分享圖設定</button><button class="tab" data-main-tab="app">App / 通知</button><button class="tab" id="accountSelfTab" data-main-tab="accountSelf">帳號維護</button><button class="tab hidden" id="accountsTab" data-main-tab="accounts">帳號管理</button></div>
 <section id="inboxPanel"><div class="tabs" id="filterTabs"><button class="tab active" data-filter="all">全部</button><button class="tab" data-filter="unread">未讀</button><button class="tab" data-filter="favorite">收藏</button><button class="tab" data-filter="delete_request">刪文申請</button></div><div class="list" id="messageList"><div class="empty">載入中…</div></div></section>
 <section id="settingsPanel" class="hidden"><div class="panel"><div class="settings-grid">
-<div class="field"><label>前台 LOGO</label><div class="logo-setting"><div class="logo" id="adminLogo"><span class="logo-placeholder">LOGO</span></div><div><label class="secondary" for="logoFile" style="display:inline-block;cursor:pointer">選擇圖片</label><input id="logoFile" type="file" accept="image/png,image/jpeg,image/webp" class="hidden"><button class="secondary" id="removeLogoBtn" type="button" style="margin-left:5px">移除</button><div class="small" id="logoStatus" style="margin-top:8px">PNG / JPG / WEBP，最大 5 MB。</div></div></div></div>
+<div class="field"><label>前台 LOGO</label><div class="logo-setting"><div class="logo" id="adminLogo"><span class="logo-placeholder">LOGO</span></div><div><label class="secondary" for="logoFile" style="display:inline-block;cursor:pointer">選擇圖片</label><input id="logoFile" type="file" accept="image/png,image/jpeg,image/webp" class="hidden"><button class="secondary" id="removeLogoBtn" type="button" style="margin-left:5px">移除</button><div class="small" id="logoStatus" style="margin-top:8px">PNG / JPG / WEBP，最大 15 MB。</div></div></div></div>
 <div class="field"><label>網站名稱</label><input id="siteNameInput" maxlength="50"></div><div class="field"><label>「匿名傳話給 ___」</label><input id="recipientInput" maxlength="50"></div><div class="field"><label>投稿須知</label><textarea id="noticeInput" maxlength="1000"></textarea></div>
 <div class="switch-row"><div><strong>開放匿名投稿</strong><div class="small">關閉後資料庫也會拒絕新投稿。</div></div><input id="submissionEnabled" type="checkbox"></div><div class="field"><label>投稿截止時間（可留空）</label><input id="submissionDeadline" type="datetime-local"></div>
 <div class="save-row"><button class="primary" id="saveSettingsBtn" type="button">儲存設定</button></div><div class="status-line" id="settingsStatus"></div>
@@ -2808,7 +2816,7 @@ body{
       <input id="squareBgFile" type="file" accept="image/png,image/jpeg,image/webp" class="hidden">
       <button class="secondary" id="resetSquareBgBtn" type="button">還原預設背景</button>
     </div>
-    <div class="small" id="squareBgStatus">PNG / JPG / WEBP，最大 5 MB。</div>
+    <div class="small" id="squareBgStatus">PNG / JPG / WEBP，最大 15 MB。</div>
 
     <div class="share-bg-transform-settings">
       <div class="share-bg-transform-head">
@@ -2907,12 +2915,36 @@ body{
 </section>
 
 
+<section id="accountSelfPanel" class="hidden">
+  <div class="panel account-self-panel">
+    <div class="account-admin-head">
+      <div>
+        <div class="small">每位管理員只能修改自己的登入資料。</div>
+        <h3>帳號維護</h3>
+      </div>
+      <span class="admin-role-badge">MY ACCOUNT</span>
+    </div>
+    <div class="account-security-note">
+      可修改自己的管理員名稱、登入 Email 與密碼。既有密碼無法讀回；若不需要變更密碼，密碼欄請留空。
+    </div>
+    <div class="account-self-card">
+      <div class="account-self-grid">
+        <div class="field"><label>管理員名稱</label><input id="selfAdminName" type="text" maxlength="30" autocomplete="off" placeholder="管理員名稱"></div>
+        <div class="field"><label>登入帳號（Email）</label><input id="selfAdminEmail" type="email" autocomplete="username" placeholder="name@example.com"></div>
+        <div class="field"><label>設定新密碼</label><input id="selfAdminPassword" type="password" autocomplete="new-password" placeholder="留空代表不變；至少 8 碼"></div>
+        <div class="field"><label>再次輸入新密碼</label><input id="selfAdminPasswordConfirm" type="password" autocomplete="new-password" placeholder="再次輸入；不改密碼可留空"></div>
+      </div>
+      <div class="account-create-actions"><span class="status-line" id="selfAccountStatus"></span><button class="primary" id="saveSelfAccountBtn" type="button">儲存我的帳號</button></div>
+    </div>
+  </div>
+</section>
+
 <section id="accountsPanel" class="hidden">
   <div class="panel account-admin-panel">
     <div class="account-admin-head">
       <div>
-        <div class="small">僅主帳號可新增、修改或刪除後台登入帳號。</div>
-        <h3>帳號維護</h3>
+        <div class="small">僅主帳號可新增、修改或刪除所有後台登入帳號。</div>
+        <h3>帳號管理</h3>
       </div>
       <span class="admin-role-badge owner">OWNER ONLY</span>
     </div>
@@ -2923,7 +2955,7 @@ body{
 
     <div class="account-create-card">
       <h4>新增後台帳號</h4>
-      <div class="small">新增後可登入同一個後台，但不會看到「帳號維護」。</div>
+      <div class="small">新增後可登入同一個後台，也能使用「帳號維護」修改自己的資料；只有主帳號會看到「帳號管理」。</div>
       <div class="account-create-grid">
         <div class="field">
           <label>管理員名稱</label>
@@ -3005,7 +3037,7 @@ body{
 </section>
 </div></div></section>
 </main>
-<button class="version-entry" id="versionEntry" type="button" aria-label="版本資訊">v1.18.3</button>
+<button class="version-entry" id="versionEntry" type="button" aria-label="版本資訊">v1.18.4</button>
 <div class="toast" id="toast"></div>
 <dialog id="storyDialog">
   <div class="modal share-modal">
@@ -3484,8 +3516,8 @@ $("#messageImageFile").addEventListener("change",e=>{
   if(!["image/png","image/jpeg","image/webp"].includes(file.type)){
     return toast("圖片只支援 PNG、JPG、WEBP");
   }
-  if(file.size>5*1024*1024){
-    return toast("圖片不能超過 5 MB");
+  if(file.size>15*1024*1024){
+    return toast("圖片不能超過 15 MB");
   }
 
   resetPendingMessageImage();
@@ -3671,6 +3703,7 @@ async function loadAdminRole(){
     currentAdminRole=me.role||null;
     currentAdminName=(me.display_name||"管理員").trim()||"管理員";
     $("#accountsTab").classList.toggle("hidden",currentAdminRole!=="owner");
+    fillSelfAccountForm(me);
     return currentAdminRole;
   }catch(error){
     console.warn("load_admin_role_failed",error);
@@ -3678,6 +3711,62 @@ async function loadAdminRole(){
   }
 }
 
+function fillSelfAccountForm(me){
+  if(!me)return;
+  $("#selfAdminName").value=(me.display_name||currentAdminName||"管理員").trim();
+  $("#selfAdminEmail").value=me.email||"";
+  $("#selfAdminPassword").value="";
+  $("#selfAdminPasswordConfirm").value="";
+}
+
+async function loadSelfAccount(){
+  try{
+    const me=await callAdminManager("me");
+    currentAdminRole=me.role||currentAdminRole;
+    currentAdminName=(me.display_name||currentAdminName||"管理員").trim()||"管理員";
+    fillSelfAccountForm(me);
+    return me;
+  }catch(error){
+    console.error("load_self_account_failed",error);
+    $("#selfAccountStatus").textContent=adminManagerErrorText(error.code);
+    return null;
+  }
+}
+
+$("#saveSelfAccountBtn").addEventListener("click",async()=>{
+  const displayName=$("#selfAdminName").value.trim();
+  const email=$("#selfAdminEmail").value.trim();
+  const password=$("#selfAdminPassword").value;
+  const confirmPassword=$("#selfAdminPasswordConfirm").value;
+  const status=$("#selfAccountStatus");
+
+  if(!displayName)return toast("請輸入管理員名稱");
+  if(displayName.length>30)return toast("管理員名稱最多 30 個字");
+  if(!/^\S+@\S+\.\S+$/.test(email))return toast("Email 格式不正確");
+  if(password&&password.length<8)return toast("新密碼至少需要 8 碼");
+  if(password!==confirmPassword)return toast("兩次輸入的新密碼不一致");
+
+  const btn=$("#saveSelfAccountBtn");
+  btn.disabled=true;
+  btn.textContent="儲存中…";
+  status.textContent="儲存中…";
+  try{
+    const result=await callAdminManager("update_self",{display_name:displayName,email,password});
+    currentAdminName=(result.display_name||displayName||"管理員").trim()||"管理員";
+    currentAdminRole=result.role||currentAdminRole;
+    $("#adminIdentity").textContent=`${currentAdminName}管理員 · ${result.email||email}${currentAdminRole==="owner"?" · Owner":""}`;
+    $("#selfAdminPassword").value="";
+    $("#selfAdminPasswordConfirm").value="";
+    status.textContent="帳號資料已更新。";
+    toast("我的帳號已更新");
+  }catch(error){
+    status.textContent=adminManagerErrorText(error.code);
+    toast(adminManagerErrorText(error.code));
+  }finally{
+    btn.disabled=false;
+    btn.textContent="儲存我的帳號";
+  }
+});
 function formatAdminTimestamp(value){
   if(!value)return"尚未登入";
   try{return new Date(value).toLocaleString("zh-TW",{year:"numeric",month:"2-digit",day:"2-digit",hour:"2-digit",minute:"2-digit"})}catch{return"—"}
@@ -4091,6 +4180,7 @@ $("#mainTabs").addEventListener("click",async e=>{
   $("#settingsPanel").classList.toggle("hidden",tab!=="settings");
   $("#eventsPanel").classList.toggle("hidden",tab!=="events");
   $("#shareSettingsPanel").classList.toggle("hidden",tab!=="share");
+  $("#accountSelfPanel").classList.toggle("hidden",tab!=="accountSelf");
   $("#accountsPanel").classList.toggle("hidden",tab!=="accounts");
   $("#appPanel").classList.toggle("hidden",tab!=="app");
 
@@ -4099,6 +4189,7 @@ $("#mainTabs").addEventListener("click",async e=>{
     settings:$("#settingsPanel .panel"),
     events:$("#eventsPanel .panel"),
     share:$("#shareSettingsPanel .panel"),
+    accountSelf:$("#accountSelfPanel .panel"),
     accounts:$("#accountsPanel .panel"),
     app:$("#appPanel .panel")
   }[tab];
@@ -4116,9 +4207,13 @@ $("#mainTabs").addEventListener("click",async e=>{
   if(tab==="share"){
     fillSquareShareSettings();
   }
+  if(tab==="accountSelf"){
+    $("#selfAccountStatus").textContent="";
+    await loadSelfAccount();
+  }
   if(tab==="accounts"){
     if(currentAdminRole!=="owner"){
-      toast("只有主帳號可以管理帳號");
+      toast("只有主帳號可以管理所有帳號");
       return;
     }
     await loadAdminUsers();
@@ -4449,7 +4544,7 @@ $("#squareBgFile").addEventListener("change",async e=>{
   e.target.value="";
   if(!file)return;
   if(!["image/png","image/jpeg","image/webp"].includes(file.type))return toast("只支援 PNG、JPG、WEBP");
-  if(file.size>5*1024*1024)return toast("圖片不能超過 5 MB");
+  if(file.size>15*1024*1024)return toast("圖片不能超過 15 MB");
 
   $("#squareBgStatus").textContent="背景上傳中…";
   const ext=file.type==="image/png"?"png":file.type==="image/webp"?"webp":"jpg";
@@ -4506,7 +4601,7 @@ $("#resetSquareBgBtn").addEventListener("click",async()=>{
   toast("已還原預設背景");
 });
 
-$("#logoFile").addEventListener("change",async e=>{const file=e.target.files?.[0];e.target.value="";if(!file)return;if(!["image/png","image/jpeg","image/webp"].includes(file.type))return toast("只支援 PNG、JPG、WEBP");if(file.size>5*1024*1024)return toast("圖片不能超過 5 MB");$("#logoStatus").textContent="上傳中…";const ext=file.type==="image/png"?"png":file.type==="image/webp"?"webp":"jpg",path=`logo/${Date.now()}.${ext}`,oldPath=settings?.logo_path||null;const {error:uploadError}=await supabase.storage.from("site-assets").upload(path,file,{cacheControl:"3600",upsert:false,contentType:file.type});if(uploadError){console.error(uploadError);$("#logoStatus").textContent="上傳失敗。";return}const {data,error}=await supabase.from("site_settings").update({logo_path:path}).eq("id",1).select().single();if(error){await supabase.storage.from("site-assets").remove([path]);$("#logoStatus").textContent="設定更新失敗。";return}settings=data;if(oldPath)await supabase.storage.from("site-assets").remove([oldPath]);$("#logoStatus").textContent="LOGO 已更新。";renderPublic();fillSettingsForm()});
+$("#logoFile").addEventListener("change",async e=>{const file=e.target.files?.[0];e.target.value="";if(!file)return;if(!["image/png","image/jpeg","image/webp"].includes(file.type))return toast("只支援 PNG、JPG、WEBP");if(file.size>15*1024*1024)return toast("圖片不能超過 15 MB");$("#logoStatus").textContent="上傳中…";const ext=file.type==="image/png"?"png":file.type==="image/webp"?"webp":"jpg",path=`logo/${Date.now()}.${ext}`,oldPath=settings?.logo_path||null;const {error:uploadError}=await supabase.storage.from("site-assets").upload(path,file,{cacheControl:"3600",upsert:false,contentType:file.type});if(uploadError){console.error(uploadError);$("#logoStatus").textContent="上傳失敗。";return}const {data,error}=await supabase.from("site_settings").update({logo_path:path}).eq("id",1).select().single();if(error){await supabase.storage.from("site-assets").remove([path]);$("#logoStatus").textContent="設定更新失敗。";return}settings=data;if(oldPath)await supabase.storage.from("site-assets").remove([oldPath]);$("#logoStatus").textContent="LOGO 已更新。";renderPublic();fillSettingsForm()});
 $("#removeLogoBtn").addEventListener("click",async()=>{if(!settings?.logo_path)return;const old=settings.logo_path,{data,error}=await supabase.from("site_settings").update({logo_path:null}).eq("id",1).select().single();if(error)return toast("移除失敗");settings=data;await supabase.storage.from("site-assets").remove([old]);renderPublic();fillSettingsForm();$("#logoStatus").textContent="LOGO 已移除。"});
 function startRealtime(){if(realtimeChannel)return;realtimeChannel=supabase.channel("admin-new-messages").on("postgres_changes",{event:"INSERT",schema:"public",table:"messages"},async()=>{toast("你收到一則新的匿名訊息");await loadMessages()}).subscribe()}
 function roundRect(ctx,x,y,w,h,r){ctx.beginPath();ctx.moveTo(x+r,y);ctx.arcTo(x+w,y,x+w,y+h,r);ctx.arcTo(x+w,y+h,x,y+h,r);ctx.arcTo(x,y+h,x,y,r);ctx.arcTo(x,y,x+w,y,r);ctx.closePath()}
