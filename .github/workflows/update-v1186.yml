@@ -43,7 +43,7 @@ jobs:
         run: |
           git config user.name "thfsh112"
           git config user.email "marsmars1000507@gmail.com"
-          git rm .github/update_v1186.py .github/workflows/update-v1186.yml
+          git rm .github/update_v1186.py .github/bubble_v1186.js .github/bubble_v1186.css .github/workflows/update-v1186.yml
           git add index.html service-worker.js
           git commit -m "Update anonymous mailbox to v1.18.6"
           git push
