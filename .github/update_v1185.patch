@@ -1,0 +1,338 @@
+--- a/index.html
++++ b/index.html
+@@ -2569,7 +2569,6 @@
+ #mainTabs .tab{flex:0 0 auto}
+ #accountsTab:not(.hidden){display:inline-flex}
+ 
+-
+ /* ===== v1.18.4 帳號維護 / 帳號管理 ===== */
+ .account-self-panel{max-width:780px;margin:0 auto}
+ .account-self-card{
+@@ -2587,6 +2586,85 @@
+ .account-self-grid .field{margin:0}
+ @media(max-width:620px){
+   .account-self-grid{grid-template-columns:1fr}
++}
++
++
++/* ===== v1.18.5 每篇分享圖文字樣式 ===== */
++.share-text-style{
++  margin:14px 0 12px;
++  padding:14px;
++  border:1px solid var(--line);
++  border-radius:17px;
++  background:rgba(255,255,255,.78);
++}
++.share-text-style-head{
++  display:flex;
++  align-items:flex-start;
++  justify-content:space-between;
++  gap:12px;
++  margin-bottom:11px;
++}
++.share-text-style-head strong{font-size:13px}
++.share-text-style-head span{font-size:11px;color:var(--muted)}
++.share-text-style-grid{
++  display:grid;
++  grid-template-columns:1fr 1.25fr;
++  gap:11px;
++}
++.share-text-field{display:grid;gap:6px}
++.share-text-field label{
++  font-size:11px;
++  color:var(--muted);
++  font-weight:850;
++}
++.share-text-field select{
++  width:100%;
++  border:1px solid var(--line);
++  border-radius:12px;
++  background:#fff;
++  color:var(--text);
++  padding:10px 11px;
++  font-size:14px;
++  outline:none;
++}
++.share-font-size-row{
++  display:flex;
++  align-items:center;
++  gap:9px;
++  min-height:42px;
++}
++.share-font-size-row input[type="range"]{
++  flex:1;
++  min-width:0;
++  accent-color:#111722;
++}
++.share-font-size-value{
++  min-width:66px;
++  text-align:right;
++  font-size:12px;
++  font-weight:850;
++  color:var(--text);
++}
++.share-text-style-actions{
++  margin-top:11px;
++  display:flex;
++  justify-content:space-between;
++  align-items:center;
++  gap:10px;
++}
++.share-text-style-status{
++  min-height:18px;
++  font-size:11px;
++  line-height:1.5;
++  color:var(--muted);
++}
++.share-text-reset{
++  flex:none;
++  padding:8px 10px;
++  font-size:11px;
++}
++@media(max-width:520px){
++  .share-text-style-grid{grid-template-columns:1fr}
+ }
+ 
+ </style>
+@@ -3067,7 +3145,7 @@
+ </section>
+ </div></div></section>
+ </main>
+-<button class="version-entry" id="versionEntry" type="button" aria-label="版本資訊">v1.18.4</button>
++<button class="version-entry" id="versionEntry" type="button" aria-label="版本資訊">v1.18.5</button>
+ <div class="toast" id="toast"></div>
+ <dialog id="storyDialog">
+   <div class="modal share-modal">
+@@ -3089,6 +3167,41 @@
+         <strong>貼文版</strong>
+         <span>1:1</span>
+       </button>
++    </div>
++
++    <div class="share-text-style">
++      <div class="share-text-style-head">
++        <div>
++          <strong>這一篇的文字樣式</strong>
++          <div class="small">每篇投稿獨立記錄；未調整時完全沿用原版。</div>
++        </div>
++        <span id="shareTextFormatLabel">限動版</span>
++      </div>
++
++      <div class="share-text-style-grid">
++        <div class="share-text-field">
++          <label for="shareFontSelect">字體</label>
++          <select id="shareFontSelect">
++            <option value="original">原版</option>
++            <option value="ming">明體</option>
++            <option value="sans">黑體</option>
++            <option value="kai">楷體</option>
++          </select>
++        </div>
++
++        <div class="share-text-field">
++          <label for="shareFontSizeRange">文字大小</label>
++          <div class="share-font-size-row">
++            <input id="shareFontSizeRange" type="range" min="28" max="84" step="1">
++            <span class="share-font-size-value" id="shareFontSizeValue">52 px</span>
++          </div>
++        </div>
++      </div>
++
++      <div class="share-text-style-actions">
++        <span class="share-text-style-status" id="shareTextStyleStatus">目前使用原版設定。</span>
++        <button class="secondary share-text-reset" id="resetShareTextStyleBtn" type="button">恢復原版</button>
++      </div>
+     </div>
+ 
+     <div class="share-preview-shell story" id="sharePreviewShell">
+@@ -3996,7 +4109,7 @@
+ });
+ async function loadMessages(){
+   const {data,error}=await supabase.from("messages")
+-    .select("id,content,created_at,read_at,is_favorite,tracking_code,deletion_requested_at,image_path")
++    .select("id,content,created_at,read_at,is_favorite,tracking_code,deletion_requested_at,image_path,share_story_font_key,share_story_font_size,share_square_font_key,share_square_font_size")
+     .order("created_at",{ascending:false})
+     .limit(300);
+   if(error){
+@@ -4085,7 +4198,7 @@
+     if(action==="image")await openMessageImage(m);
+     if(action==="story"){
+       if(!m.read_at)await markRead(m.id,false);
+-      currentStory=m;currentShareFormat="story";currentSharePage=0;invalidateAppleShareCache();prepareSharePages(m.content,currentShareFormat);await drawShareImage(m.content,currentShareFormat,currentSharePage);syncShareFormatUI();$("#storyDialog").showModal();prepareAppleShareFiles()
++      currentStory=m;currentShareFormat="story";currentSharePage=0;invalidateAppleShareCache();syncShareTextStyleControls();prepareSharePages(m.content,currentShareFormat);await drawShareImage(m.content,currentShareFormat,currentSharePage);syncShareFormatUI();$("#storyDialog").showModal();prepareAppleShareFiles()
+     }
+   }));
+ }
+@@ -4931,7 +5044,9 @@
+     settings?.square_post_footer_opacity??"",
+     settings?.square_post_bg_scale??1,
+     settings?.square_post_bg_x??0,
+-    settings?.square_post_bg_y??0
++    settings?.square_post_bg_y??0,
++    shareFontKey(currentShareFormat),
++    shareFontSize(currentShareFormat)
+   ].join("|");
+ }
+ 
+@@ -5020,10 +5135,132 @@
+   };
+ }
+ 
++const SHARE_FONT_FAMILIES={
++  original:'"Noto Serif TC","PingFang TC","Microsoft JhengHei",sans-serif',
++  ming:'"Noto Serif TC","PMingLiU","Songti TC",serif',
++  sans:'"PingFang TC","Microsoft JhengHei","Noto Sans TC","Arial",sans-serif',
++  kai:'"BiauKai","DFKai-SB","KaiTi","STKaiti",serif'
++};
++
++function defaultShareFontSize(format){
++  return format==="square" ? 44 : 52;
++}
++
++function shareStyleField(format,type){
++  const prefix=format==="square"?"share_square":"share_story";
++  return `${prefix}_${type}`;
++}
++
++function shareFontKey(format){
++  const value=currentStory?.[shareStyleField(format,"font_key")];
++  return Object.prototype.hasOwnProperty.call(SHARE_FONT_FAMILIES,value)
++    ? value
++    : "original";
++}
++
++function shareFontFamily(format){
++  return SHARE_FONT_FAMILIES[shareFontKey(format)]||SHARE_FONT_FAMILIES.original;
++}
++
+ function shareFontSize(format){
+-  // 長文不再一路縮字；維持手機可讀尺寸，放不下就換頁。
+-  return format==="square" ? 44 : 52;
+-}
++  // 預設完全沿用原版；只有這一篇有自訂值時才覆蓋。
++  const raw=Number(currentStory?.[shareStyleField(format,"font_size")]);
++  if(Number.isFinite(raw) && raw>=28 && raw<=84)return Math.round(raw);
++  return defaultShareFontSize(format);
++}
++
++function shareBodyCanvasFont(format,fontSize=shareFontSize(format)){
++  return `700 ${fontSize}px ${shareFontFamily(format)}`;
++}
++
++function isOriginalShareTextStyle(format){
++  return shareFontKey(format)==="original"
++    && shareFontSize(format)===defaultShareFontSize(format);
++}
++
++function syncShareTextStyleControls(){
++  if(!currentStory)return;
++  const fontKey=shareFontKey(currentShareFormat);
++  const fontSize=shareFontSize(currentShareFormat);
++  $("#shareFontSelect").value=fontKey;
++  $("#shareFontSizeRange").value=String(fontSize);
++  $("#shareFontSizeValue").textContent=`${fontSize} px${fontSize===defaultShareFontSize(currentShareFormat)?" · 原版":""}`;
++  $("#shareTextFormatLabel").textContent=currentShareFormat==="square"?"貼文版":"限動版";
++  $("#shareTextStyleStatus").textContent=isOriginalShareTextStyle(currentShareFormat)
++    ?"目前使用原版設定。"
++    :"已自訂這一篇；切換其他投稿不會跟著改。";
++}
++
++let shareTextStyleSaveTimer=null;
++
++async function saveCurrentShareTextStyle(){
++  if(!currentStory)return;
++  const payload={
++    share_story_font_key:currentStory.share_story_font_key??null,
++    share_story_font_size:currentStory.share_story_font_size??null,
++    share_square_font_key:currentStory.share_square_font_key??null,
++    share_square_font_size:currentStory.share_square_font_size??null
++  };
++  const {error}=await supabase.from("messages").update(payload).eq("id",currentStory.id);
++  if(error){
++    console.error("save_share_text_style_failed",error);
++    $("#shareTextStyleStatus").textContent="文字樣式儲存失敗，請稍後再試。";
++    return false;
++  }
++  $("#shareTextStyleStatus").textContent=isOriginalShareTextStyle(currentShareFormat)
++    ?"已恢復原版設定。"
++    :"這一篇的文字樣式已儲存。";
++  return true;
++}
++
++function queueShareTextStyleSave(){
++  clearTimeout(shareTextStyleSaveTimer);
++  shareTextStyleSaveTimer=setTimeout(()=>saveCurrentShareTextStyle(),420);
++}
++
++async function refreshShareTextStylePreview({prepareApple=false}={}){
++  if(!currentStory)return;
++  currentSharePage=0;
++  invalidateAppleShareCache();
++  prepareSharePages(currentStory.content,currentShareFormat);
++  syncShareTextStyleControls();
++  syncShareFormatUI();
++  await drawShareImage(currentStory.content,currentShareFormat,currentSharePage);
++  if(prepareApple)prepareAppleShareFiles();
++}
++
++$("#shareFontSelect").addEventListener("change",async()=>{
++  if(!currentStory)return;
++  currentStory[shareStyleField(currentShareFormat,"font_key")]=$("#shareFontSelect").value;
++  await refreshShareTextStylePreview();
++  await saveCurrentShareTextStyle();
++  prepareAppleShareFiles();
++});
++
++$("#shareFontSizeRange").addEventListener("input",async()=>{
++  if(!currentStory)return;
++  const size=Math.max(28,Math.min(84,Number($("#shareFontSizeRange").value)||defaultShareFontSize(currentShareFormat)));
++  currentStory[shareStyleField(currentShareFormat,"font_size")]=size;
++  await refreshShareTextStylePreview();
++  queueShareTextStyleSave();
++});
++
++$("#shareFontSizeRange").addEventListener("change",async()=>{
++  if(!currentStory)return;
++  clearTimeout(shareTextStyleSaveTimer);
++  await saveCurrentShareTextStyle();
++  invalidateAppleShareCache();
++  prepareAppleShareFiles();
++});
++
++$("#resetShareTextStyleBtn").addEventListener("click",async()=>{
++  if(!currentStory)return;
++  currentStory[shareStyleField(currentShareFormat,"font_key")]=null;
++  currentStory[shareStyleField(currentShareFormat,"font_size")]=null;
++  await refreshShareTextStylePreview();
++  await saveCurrentShareTextStyle();
++  prepareAppleShareFiles();
++});
+ 
+ function wrapShareTextToLines(ctx,text,maxWidth){
+   const source=String(text??"").replace(/\r\n/g,"\n").replace(/\r/g,"\n");
+@@ -5078,7 +5315,7 @@
+     Math.floor((usableHeight-fontSize)/lineHeight)+1
+   );
+ 
+-  ctx.font=`700 ${fontSize}px "Noto Serif TC","PingFang TC","Microsoft JhengHei",sans-serif`;
++  ctx.font=shareBodyCanvasFont(format,fontSize);
+ 
+   const lines=wrapShareTextToLines(
+     ctx,
+@@ -5238,7 +5475,7 @@
+   const fontSize=shareFontSize(format);
+   const lineHeight=Math.round(fontSize*1.42);
+   ctx.fillStyle="#172033";
+-  ctx.font=`700 ${fontSize}px "Noto Serif TC","PingFang TC","Microsoft JhengHei",sans-serif`;
++  ctx.font=shareBodyCanvasFont(format,fontSize);
+ 
+   drawShareLines(
+     ctx,
+@@ -5310,6 +5547,7 @@
+ 
+ function syncShareFormatUI(){
+   const cfg=getShareCanvasConfig(currentShareFormat);
++  syncShareTextStyleControls();
+   $$(".share-format-tab").forEach(btn=>{
+     btn.classList.toggle("active",btn.dataset.shareFormat===currentShareFormat);
+   });
