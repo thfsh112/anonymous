@@ -2655,6 +2655,93 @@ body{
   .share-text-style-grid{grid-template-columns:1fr}
 }
 
+/* ===== v1.18.6 後台惡意泡泡 ===== */
+#adminBubbleZone{
+  position:fixed;
+  left:12px;
+  right:12px;
+  top:168px;
+  bottom:14px;
+  z-index:55;
+  pointer-events:none;
+  overflow:hidden;
+}
+#adminBubbleZone.hidden{
+  display:none;
+}
+.admin-bubble{
+  position:absolute;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  text-align:center;
+  padding:16px;
+  border-radius:999px;
+  color:#fff;
+  font-weight:900;
+  letter-spacing:.01em;
+  line-height:1.18;
+  pointer-events:auto;
+  user-select:none;
+  cursor:default;
+  border:2px solid rgba(255,255,255,.72);
+  background:
+    radial-gradient(circle at 28% 24%, rgba(255,255,255,.95) 0 10%, rgba(255,255,255,.26) 19%, rgba(124,205,255,.94) 44%, rgba(60,121,255,.95) 76%, rgba(16,43,109,.98) 100%);
+  box-shadow:
+    0 18px 34px rgba(7,20,51,.28),
+    inset 0 10px 18px rgba(255,255,255,.22),
+    inset 0 -14px 24px rgba(8,18,38,.26);
+  backdrop-filter:blur(5px);
+}
+.admin-bubble::before{
+  content:"";
+  position:absolute;
+  inset:8% auto auto 15%;
+  width:38%;
+  height:22%;
+  border-radius:999px;
+  background:linear-gradient(180deg, rgba(255,255,255,.78), rgba(255,255,255,0));
+  transform:rotate(-14deg);
+  pointer-events:none;
+}
+.admin-bubble-text{
+  position:relative;
+  z-index:1;
+  max-width:100%;
+  text-shadow:0 2px 10px rgba(0,0,0,.2);
+  word-break:break-word;
+}
+.admin-bubble-close{
+  position:absolute;
+  top:8px;
+  right:8px;
+  width:28px;
+  height:28px;
+  border:none;
+  border-radius:999px;
+  background:#ffffff;
+  color:#113063;
+  font-size:18px;
+  font-weight:900;
+  line-height:1;
+  display:grid;
+  place-items:center;
+  box-shadow:0 8px 16px rgba(17,48,99,.22);
+  cursor:pointer;
+  z-index:2;
+}
+.admin-bubble-close:active{
+  transform:scale(.94);
+}
+.admin-bubble.bump{
+  animation:adminBubbleBump .28s ease;
+}
+@keyframes adminBubbleBump{
+  0%{transform:translate(var(--bubble-x),var(--bubble-y)) scale(1)}
+  45%{transform:translate(var(--bubble-x),var(--bubble-y)) scale(1.12)}
+  100%{transform:translate(var(--bubble-x),var(--bubble-y)) scale(1)}
+}
+
 </style>
 </head>
 <body>
@@ -2841,6 +2928,7 @@ body{
 <div id="loginPanel" class="login-card"><h2>後台登入</h2><p class="sub">只有指定管理員帳號可以進入。</p><form id="loginForm"><div class="field"><label>Email</label><input id="loginEmail" type="email" autocomplete="username" required></div><div class="field"><label>密碼</label><input id="loginPassword" type="password" autocomplete="current-password" required></div><button class="primary full" id="loginBtn" type="submit" style="margin-top:15px">登入</button><div class="error hidden" id="loginError"></div></form><button class="secondary full" id="backPublicFromLogin" style="margin-top:9px;width:100%">回投稿頁</button></div>
 <div id="adminMain" class="hidden"><div class="admin-head"><div><h2>後台</h2><div class="small" id="adminIdentity"></div></div><div class="top-actions"><button class="secondary" id="backPublicBtn">前台</button><button class="secondary" id="logoutBtn">登出</button></div></div>
 <div class="tabs" id="mainTabs"><button class="tab active" data-main-tab="inbox">收件箱 <span class="badge hidden" id="unreadBadge">0</span></button><button class="tab" data-main-tab="settings">網站設定</button><button class="tab" data-main-tab="events">重要日程</button><button class="tab" data-main-tab="share">分享圖設定</button><button class="tab" data-main-tab="app">App / 通知</button><button class="tab" id="accountSelfTab" data-main-tab="accountSelf">帳號維護</button><button class="tab hidden" id="accountsTab" data-main-tab="accounts">帳號管理</button></div>
+<div id="adminBubbleZone" class="hidden" aria-hidden="true"></div>
 <section id="inboxPanel"><div class="tabs" id="filterTabs"><button class="tab active" data-filter="all">全部</button><button class="tab" data-filter="unread">未讀</button><button class="tab" data-filter="favorite">收藏</button><button class="tab" data-filter="delete_request">刪文申請</button></div><div class="list" id="messageList"><div class="empty">載入中…</div></div></section>
 <section id="settingsPanel" class="hidden"><div class="panel"><div class="settings-grid">
 <div class="field"><label>前台 LOGO</label><div class="logo-setting"><div class="logo" id="adminLogo"><span class="logo-placeholder">LOGO</span></div><div><label class="secondary" for="logoFile" style="display:inline-block;cursor:pointer">選擇圖片</label><input id="logoFile" type="file" accept="image/png,image/jpeg,image/webp" class="hidden"><button class="secondary" id="removeLogoBtn" type="button" style="margin-left:5px">移除</button><div class="small" id="logoStatus" style="margin-top:8px">PNG / JPG / WEBP，最大 15 MB。</div></div></div></div>
@@ -3115,7 +3203,7 @@ body{
 </section>
 </div></div></section>
 </main>
-<button class="version-entry" id="versionEntry" type="button" aria-label="版本資訊">v1.18.5</button>
+<button class="version-entry" id="versionEntry" type="button" aria-label="版本資訊">v1.18.6</button>
 <div class="toast" id="toast"></div>
 <dialog id="storyDialog">
   <div class="modal share-modal">
@@ -3740,6 +3828,7 @@ function showView(name){
   $("#adminView").classList.toggle("active",name==="admin");
   if(name==="public"){
     closePublicTool();
+    resetAdminBubbles();
   }
 }
 let versionTapCount=0;
@@ -4033,9 +4122,257 @@ $("#adminUsersList").addEventListener("click",async e=>{
   }
 });
 
+const ADMIN_BUBBLE_TAUNTS=[
+  "不是叫你不要點嗎",
+  "恭喜，又多一顆",
+  "你以為那是關閉？",
+  "這顆是你自己生的",
+  "手很癢是不是",
+  "再按一次看看啊",
+  "管理員的自制力：0",
+  "其實放著就會變小",
+  "你再點，我再生",
+  "不要怪我，是你按的",
+  "這不是叉掉，是繁殖",
+  "你真的很想關掉我欸"
+];
+const ADMIN_BUBBLE_IDLE_MS=15000;
+const ADMIN_BUBBLE_GROWTH=.05;
+const ADMIN_BUBBLE_SHRINK_FACTOR=.9;
+const ADMIN_BUBBLE_MIN_SCALE=.2;
+const ADMIN_BUBBLE_MAX_SCALE=2.25;
+const ADMIN_BUBBLE_MAX_COUNT=20;
+const ADMIN_BUBBLE_BASE_SIZE=116;
+
+let adminBubbleState={
+  running:false,
+  raf:0,
+  lastTick:0,
+  seq:0,
+  bubbles:[]
+};
+
+function bubbleZone(){
+  return $("#adminBubbleZone");
+}
+function randomBubbleTaunt(){
+  return ADMIN_BUBBLE_TAUNTS[Math.floor(Math.random()*ADMIN_BUBBLE_TAUNTS.length)];
+}
+function adminBubbleBounds(){
+  const tabs=$("#mainTabs");
+  const topBase=tabs?.getBoundingClientRect?.().bottom||160;
+  return {
+    left:12,
+    top:Math.max(topBase+12,148),
+    right:window.innerWidth-12,
+    bottom:window.innerHeight-14
+  };
+}
+function applyBubbleZoneBounds(){
+  const zone=bubbleZone();
+  if(!zone)return;
+  const b=adminBubbleBounds();
+  zone.style.left=`${b.left}px`;
+  zone.style.top=`${b.top}px`;
+  zone.style.width=`${Math.max(0,b.right-b.left)}px`;
+  zone.style.height=`${Math.max(0,b.bottom-b.top)}px`;
+}
+function clearAdminBubbleElements(){
+  const zone=bubbleZone();
+  if(zone)zone.innerHTML="";
+}
+function renderAdminBubble(bubble){
+  const size=Math.round(ADMIN_BUBBLE_BASE_SIZE*bubble.scale);
+  bubble.size=size;
+  bubble.el.style.width=`${size}px`;
+  bubble.el.style.height=`${size}px`;
+  bubble.el.style.left=`${bubble.x}px`;
+  bubble.el.style.top=`${bubble.y}px`;
+  bubble.el.style.setProperty("--bubble-x",`${bubble.x}px`);
+  bubble.el.style.setProperty("--bubble-y",`${bubble.y}px`);
+  bubble.textEl.style.fontSize=`${Math.max(11,Math.min(18,Math.round(11+bubble.scale*3.2)))}px`;
+  bubble.textEl.textContent=bubble.text;
+}
+function clampBubblePosition(bubble){
+  const zone=bubbleZone();
+  if(!zone)return;
+  const maxX=Math.max(0,zone.clientWidth-bubble.size);
+  const maxY=Math.max(0,zone.clientHeight-bubble.size);
+  bubble.x=Math.min(maxX,Math.max(0,bubble.x));
+  bubble.y=Math.min(maxY,Math.max(0,bubble.y));
+}
+function makeAdminBubble({x,y,scale=1,text="先別點"}={}){
+  const zone=bubbleZone();
+  if(!zone)return null;
+
+  const el=document.createElement("div");
+  el.className="admin-bubble";
+  el.innerHTML='<button class="admin-bubble-close" type="button" aria-label="關閉">×</button><div class="admin-bubble-text"></div>';
+
+  const bubble={
+    id:++adminBubbleState.seq,
+    el,
+    textEl:el.querySelector(".admin-bubble-text"),
+    closeBtn:el.querySelector(".admin-bubble-close"),
+    x:x??0,
+    y:y??0,
+    scale:scale,
+    vx:(Math.random()>.5?1:-1)*(0.42+Math.random()*0.48),
+    vy:(Math.random()>.5?1:-1)*(0.38+Math.random()*0.42),
+    lastInteraction:Date.now(),
+    text
+  };
+
+  bubble.closeBtn.addEventListener("click",e=>{
+    e.preventDefault();
+    e.stopPropagation();
+    explodeAdminBubble(bubble);
+  });
+
+  zone.appendChild(el);
+  renderAdminBubble(bubble);
+  clampBubblePosition(bubble);
+  renderAdminBubble(bubble);
+  adminBubbleState.bubbles.push(bubble);
+  return bubble;
+}
+function spawnAdminBubbleNear(source){
+  if(adminBubbleState.bubbles.length>=ADMIN_BUBBLE_MAX_COUNT)return;
+  const zone=bubbleZone();
+  if(!zone)return;
+
+  const angle=Math.random()*Math.PI*2;
+  const distance=50+Math.random()*90;
+  const size=Math.round(ADMIN_BUBBLE_BASE_SIZE);
+  const maxX=Math.max(0,zone.clientWidth-size);
+  const maxY=Math.max(0,zone.clientHeight-size);
+
+  const x=Math.min(maxX,Math.max(0,source.x+Math.cos(angle)*distance));
+  const y=Math.min(maxY,Math.max(0,source.y+Math.sin(angle)*distance));
+
+  makeAdminBubble({
+    x,
+    y,
+    scale:1,
+    text:randomBubbleTaunt()
+  });
+}
+function explodeAdminBubble(bubble){
+  bubble.scale=Math.min(ADMIN_BUBBLE_MAX_SCALE,Number((bubble.scale+ADMIN_BUBBLE_GROWTH).toFixed(3)));
+  bubble.lastInteraction=Date.now();
+  bubble.text=randomBubbleTaunt();
+  bubble.vx*=1.04;
+  bubble.vy*=1.04;
+  bubble.el.classList.remove("bump");
+  void bubble.el.offsetWidth;
+  bubble.el.classList.add("bump");
+  renderAdminBubble(bubble);
+  clampBubblePosition(bubble);
+  renderAdminBubble(bubble);
+  spawnAdminBubbleNear(bubble);
+}
+function removeAdminBubble(bubble){
+  bubble.el?.remove();
+  adminBubbleState.bubbles=adminBubbleState.bubbles.filter(x=>x.id!==bubble.id);
+}
+function resetAdminBubbles(){
+  adminBubbleState.running=false;
+  if(adminBubbleState.raf)cancelAnimationFrame(adminBubbleState.raf);
+  adminBubbleState.raf=0;
+  adminBubbleState.lastTick=0;
+  adminBubbleState.bubbles=[];
+  clearAdminBubbleElements();
+  bubbleZone()?.classList.add("hidden");
+}
+function tickAdminBubbles(ts){
+  if(!adminBubbleState.running)return;
+
+  const zone=bubbleZone();
+  if(!zone){
+    resetAdminBubbles();
+    return;
+  }
+
+  applyBubbleZoneBounds();
+
+  const dt=adminBubbleState.lastTick?Math.min(2.1,(ts-adminBubbleState.lastTick)/16.67):1;
+  adminBubbleState.lastTick=ts;
+  const now=Date.now();
+
+  for(const bubble of [...adminBubbleState.bubbles]){
+    if(now-bubble.lastInteraction>=ADMIN_BUBBLE_IDLE_MS){
+      bubble.scale=Number((bubble.scale*ADMIN_BUBBLE_SHRINK_FACTOR).toFixed(3));
+      bubble.lastInteraction=now;
+      if(bubble.scale<ADMIN_BUBBLE_MIN_SCALE){
+        removeAdminBubble(bubble);
+        continue;
+      }
+      renderAdminBubble(bubble);
+    }
+
+    const maxX=Math.max(0,zone.clientWidth-bubble.size);
+    const maxY=Math.max(0,zone.clientHeight-bubble.size);
+
+    bubble.x+=bubble.vx*dt;
+    bubble.y+=bubble.vy*dt;
+
+    if(bubble.x<=0){
+      bubble.x=0;
+      bubble.vx=Math.abs(bubble.vx);
+    }else if(bubble.x>=maxX){
+      bubble.x=maxX;
+      bubble.vx=-Math.abs(bubble.vx);
+    }
+
+    if(bubble.y<=0){
+      bubble.y=0;
+      bubble.vy=Math.abs(bubble.vy);
+    }else if(bubble.y>=maxY){
+      bubble.y=maxY;
+      bubble.vy=-Math.abs(bubble.vy);
+    }
+
+    renderAdminBubble(bubble);
+  }
+
+  adminBubbleState.raf=requestAnimationFrame(tickAdminBubbles);
+}
+function startAdminBubbles(){
+  resetAdminBubbles();
+
+  const zone=bubbleZone();
+  if(!zone)return;
+
+  applyBubbleZoneBounds();
+  zone.classList.remove("hidden");
+
+  const startX=Math.max(0,Math.min(zone.clientWidth-ADMIN_BUBBLE_BASE_SIZE, zone.clientWidth*.54));
+  const startY=Math.max(0,Math.min(zone.clientHeight-ADMIN_BUBBLE_BASE_SIZE, zone.clientHeight*.18));
+
+  makeAdminBubble({
+    x:startX,
+    y:startY,
+    scale:1,
+    text:"先別點"
+  });
+
+  adminBubbleState.running=true;
+  adminBubbleState.lastTick=0;
+  adminBubbleState.raf=requestAnimationFrame(tickAdminBubbles);
+}
+window.addEventListener("resize",()=>{
+  if(!adminBubbleState.running)return;
+  applyBubbleZoneBounds();
+  for(const bubble of adminBubbleState.bubbles){
+    clampBubblePosition(bubble);
+    renderAdminBubble(bubble);
+  }
+});
+
 async function openAdmin(){
   const user=await getVerifiedAdmin();
   if(!user){
+    resetAdminBubbles();
     $("#loginPanel").classList.remove("hidden");
     $("#adminMain").classList.add("hidden");
     return;
@@ -4047,6 +4384,7 @@ async function openAdmin(){
   $("#adminIdentity").textContent=`${currentAdminName}管理員 · ${user.email||"管理員"}${role==="owner"?" · Owner":""}`;
   await Promise.allSettled([loadMessages(),loadSettings()]);
   startRealtime();
+  startAdminBubbles();
 }
 $("#loginForm").addEventListener("submit",async e=>{e.preventDefault();$("#loginError").classList.add("hidden");$("#loginBtn").disabled=true;$("#loginBtn").textContent="登入中…";const email=$("#loginEmail").value.trim(),password=$("#loginPassword").value;const {error}=await supabase.auth.signInWithPassword({email,password});if(error){$("#loginError").textContent="Email 或密碼錯誤。";$("#loginError").classList.remove("hidden");$("#loginBtn").disabled=false;$("#loginBtn").textContent="登入";return}const admin=await getVerifiedAdmin();if(!admin){await supabase.auth.signOut();$("#loginError").textContent="此帳號沒有後台管理權限。";$("#loginError").classList.remove("hidden");$("#loginBtn").disabled=false;$("#loginBtn").textContent="登入";return}$("#loginPassword").value="";$("#loginBtn").disabled=false;$("#loginBtn").textContent="登入";await openAdmin()});
 $("#logoutBtn").addEventListener("click",async()=>{
@@ -4064,6 +4402,7 @@ $("#logoutBtn").addEventListener("click",async()=>{
 
   await supabase.auth.signOut();
 
+  resetAdminBubbles();
   $("#adminMain").classList.add("hidden");
   $("#loginPanel").classList.remove("hidden");
   $("#logoutBtn").disabled=false;
