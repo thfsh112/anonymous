@@ -3203,7 +3203,7 @@ body{
 </section>
 </div></div></section>
 </main>
-<button class="version-entry" id="versionEntry" type="button" aria-label="版本資訊">v1.18.8</button>
+<button class="version-entry" id="versionEntry" type="button" aria-label="版本資訊">v1.18.9</button>
 <div class="toast" id="toast"></div>
 <dialog id="storyDialog">
   <div class="modal share-modal">
@@ -4495,6 +4495,29 @@ async function recordMessageDownload(messageId,type){
     renderMessages();
   }
 }
+async function copySubmissionPlainText(text){
+  const value=String(text??"");
+  try{
+    if(navigator.clipboard?.writeText){
+      await navigator.clipboard.writeText(value);
+    }else{
+      throw new Error("clipboard_unavailable");
+    }
+  }catch{
+    const ta=document.createElement("textarea");
+    ta.value=value;
+    ta.setAttribute("readonly","");
+    ta.style.position="fixed";
+    ta.style.opacity="0";
+    ta.style.pointerEvents="none";
+    document.body.appendChild(ta);
+    ta.focus();
+    ta.select();
+    document.execCommand("copy");
+    ta.remove();
+  }
+  toast("已複製純文字");
+}
 function renderMessages(){
   const unread=messages.filter(m=>!m.read_at).length;
   $("#unreadBadge").textContent=unread;
@@ -4507,7 +4530,7 @@ function renderMessages(){
   $("#messageList").innerHTML=list.map(m=>`<article class="msg ${m.read_at?"":"unread"}" data-id="${m.id}">
     <div class="row-between"><div class="msg-text">${escapeHtml(m.content)}</div>${m.is_favorite?'<span title="已收藏">★</span>':""}</div>
     <div class="meta">${m.read_at?"":'<span class="dot"></span>'}<span>${formatAgo(m.created_at)}</span><span class="tracking-meta">編號 ${escapeHtml(m.tracking_code||"—")}</span>${m.deletion_requested_at?'<span class="request-flag">刪文申請</span>':""}${m.image_path?'<span class="message-photo-chip">▧ 圖片</span>':""}</div>
-    <div class="actions">${m.image_path?'<button class="mini" data-action="image">查看／下載圖片</button>':""}<button class="mini" data-action="story">製作分享圖</button><button class="mini" data-action="favorite">${m.is_favorite?"取消收藏":"收藏"}</button><button class="mini danger" data-action="delete">${m.deletion_requested_at?"刪除投稿":"刪除"}</button></div>
+    <div class="actions">${m.image_path?'<button class="mini" data-action="image">查看／下載圖片</button>':""}<button class="mini" data-action="story">製作分享圖</button><button class="mini" data-action="copy">複製純文字</button><button class="mini" data-action="favorite">${m.is_favorite?"取消收藏":"收藏"}</button><button class="mini danger" data-action="delete">${m.deletion_requested_at?"刪除投稿":"刪除"}</button></div>
     ${(m.download_logs||[]).length?`<div class="message-download-audit">${(m.download_logs||[]).slice(0,5).map(log=>`<div class="message-download-audit-row"><strong>${escapeHtml(log.admin_name||"管理員")}管理員已下載</strong><span>${escapeHtml(formatDownloadType(log.download_type))} · ${escapeHtml(formatDownloadTimestamp(log.downloaded_at))}</span></div>`).join("")}</div>`:""}
   </article>`).join("");
   $$(".msg").forEach(card=>card.addEventListener("click",async e=>{
@@ -4519,6 +4542,7 @@ function renderMessages(){
     e.stopPropagation();
     const id=btn.closest(".msg").dataset.id,action=btn.dataset.action,m=messages.find(x=>x.id===id);
     if(!m)return;
+    if(action==="copy")await copySubmissionPlainText(m.content);
     if(action==="favorite")await toggleFavorite(m);
     if(action==="delete")await deleteMessage(m);
     if(action==="image")await openMessageImage(m);
