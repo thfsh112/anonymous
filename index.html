@@ -2563,6 +2563,12 @@ body{
   .admin-user-edit-actions button{width:100%}
 }
 
+
+/* ===== v1.18.3 後台分頁可見性 ===== */
+#mainTabs{flex-wrap:wrap;overflow:visible}
+#mainTabs .tab{flex:0 0 auto}
+#accountsTab:not(.hidden){display:inline-flex}
+
 </style>
 </head>
 <body>
@@ -2999,7 +3005,7 @@ body{
 </section>
 </div></div></section>
 </main>
-<button class="version-entry" id="versionEntry" type="button" aria-label="版本資訊">v1.18.2</button>
+<button class="version-entry" id="versionEntry" type="button" aria-label="版本資訊">v1.18.3</button>
 <div class="toast" id="toast"></div>
 <dialog id="storyDialog">
   <div class="modal share-modal">
@@ -3835,9 +3841,9 @@ async function openAdmin(){
   $("#loginPanel").classList.add("hidden");
   $("#adminMain").classList.remove("hidden");
   $("#adminIdentity").textContent=user.email||"管理員";
-  await Promise.all([loadMessages(),loadSettings()]);
   const role=await loadAdminRole();
   $("#adminIdentity").textContent=`${currentAdminName}管理員 · ${user.email||"管理員"}${role==="owner"?" · Owner":""}`;
+  await Promise.allSettled([loadMessages(),loadSettings()]);
   startRealtime();
 }
 $("#loginForm").addEventListener("submit",async e=>{e.preventDefault();$("#loginError").classList.add("hidden");$("#loginBtn").disabled=true;$("#loginBtn").textContent="登入中…";const email=$("#loginEmail").value.trim(),password=$("#loginPassword").value;const {error}=await supabase.auth.signInWithPassword({email,password});if(error){$("#loginError").textContent="Email 或密碼錯誤。";$("#loginError").classList.remove("hidden");$("#loginBtn").disabled=false;$("#loginBtn").textContent="登入";return}const admin=await getVerifiedAdmin();if(!admin){await supabase.auth.signOut();$("#loginError").textContent="此帳號沒有後台管理權限。";$("#loginError").classList.remove("hidden");$("#loginBtn").disabled=false;$("#loginBtn").textContent="登入";return}$("#loginPassword").value="";$("#loginBtn").disabled=false;$("#loginBtn").textContent="登入";await openAdmin()});
