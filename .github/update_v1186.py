@@ -1,11 +1,11 @@
 from pathlib import Path
-import base64
 
 p=Path("index.html")
 s=p.read_text(encoding="utf-8")
 
 def need(cond,msg):
-    if not cond: raise SystemExit(msg)
+    if not cond:
+        raise SystemExit(msg)
 
 need("v1.18.6 後台惡意泡泡" not in s,"bubble code already present")
 need(">v1.18.5</button>" in s,"v1.18.5 version marker missing")
@@ -13,28 +13,76 @@ s=s.replace(">v1.18.5</button>",">v1.18.6</button>",1)
 
 main_tabs='<div class="tabs" id="mainTabs"><button class="tab active" data-main-tab="inbox">收件箱 <span class="badge hidden" id="unreadBadge">0</span></button><button class="tab" data-main-tab="settings">網站設定</button><button class="tab" data-main-tab="events">重要日程</button><button class="tab" data-main-tab="share">分享圖設定</button><button class="tab" data-main-tab="app">App / 通知</button><button class="tab" id="accountSelfTab" data-main-tab="accountSelf">帳號維護</button><button class="tab hidden" id="accountsTab" data-main-tab="accounts">帳號管理</button></div>'
 need(main_tabs in s,"mainTabs marker missing")
-s=s.replace(main_tabs,main_tabs+"\n<div id=\"adminBubbleZone\" class=\"hidden\" aria-hidden=\"true\"></div>",1)
+s=s.replace(main_tabs,main_tabs+'\n<div id="adminBubbleZone" class="hidden" aria-hidden="true"></div>',1)
 
-css=base64.b64decode('LyogPT09PT0gdjEuMTguNiDlvozlj7Dmg6HmhI/ms6Hms6EgPT09PT0gKi8KI2FkbWluQnViYmxlWm9uZXsKICBwb3NpdGlvbjpmaXhlZDsKICBsZWZ0OjEycHg7CiAgcmlnaHQ6MTJweDsKICB0b3A6MTY4cHg7CiAgYm90dG9tOjE0cHg7CiAgei1pbmRleDo1NTsKICBwb2ludGVyLWV2ZW50czpub25lOwogIG92ZXJmbG93OmhpZGRlbjsKfQojYWRtaW5CdWJibGVab25lLmhpZGRlbnsKICBkaXNwbGF5Om5vbmU7Cn0KLmFkbWluLWJ1YmJsZXsKICBwb3NpdGlvbjphYnNvbHV0ZTsKICBkaXNwbGF5OmZsZXg7CiAgYWxpZ24taXRlbXM6Y2VudGVyOwogIGp1c3RpZnktY29udGVudDpjZW50ZXI7CiAgdGV4dC1hbGlnbjpjZW50ZXI7CiAgcGFkZGluZzoxNnB4OwogIGJvcmRlci1yYWRpdXM6OTk5cHg7CiAgY29sb3I6I2ZmZjsKICBmb250LXdlaWdodDo5MDA7CiAgbGV0dGVyLXNwYWNpbmc6LjAxZW07CiAgbGluZS1oZWlnaHQ6MS4xODsKICBwb2ludGVyLWV2ZW50czphdXRvOwogIHVzZXItc2VsZWN0Om5vbmU7CiAgY3Vyc29yOmRlZmF1bHQ7CiAgYm9yZGVyOjJweCBzb2xpZCByZ2JhKDI1NSwyNTUsMjU1LC43Mik7CiAgYmFja2dyb3VuZDoKICAgIHJhZGlhbC1ncmFkaWVudChjaXJjbGUgYXQgMjglIDI0JSwgcmdiYSgyNTUsMjU1LDI1NSwuOTUpIDAgMTAlLCByZ2JhKDI1NSwyNTUsMjU1LC4yNikgMTklLCByZ2JhKDEyNCwyMDUsMjU1LC45NCkgNDQlLCByZ2JhKDYwLDEyMSwyNTUsLjk1KSA3NiUsIHJnYmEoMTYsNDMsMTA5LC45OCkgMTAwJSk7CiAgYm94LXNoYWRvdzoKICAgIDAgMThweCAzNHB4IHJnYmEoNywyMCw1MSwuMjgpLAogICAgaW5zZXQgMCAxMHB4IDE4cHggcmdiYSgyNTUsMjU1LDI1NSwuMjIpLAogICAgaW5zZXQgMCAtMTRweCAyNHB4IHJnYmEoOCwxOCwzOCwuMjYpOwogIGJhY2tkcm9wLWZpbHRlcjpibHVyKDVweCk7Cn0KLmFkbWluLWJ1YmJsZTo6YmVmb3JlewogIGNvbnRlbnQ6IiI7CiAgcG9zaXRpb246YWJzb2x1dGU7CiAgaW5zZXQ6OCUgYXV0byBhdXRvIDE1JTsKICB3aWR0aDozOCU7CiAgaGVpZ2h0OjIyJTsKICBib3JkZXItcmFkaXVzOjk5OXB4OwogIGJhY2tncm91bmQ6bGluZWFyLWdyYWRpZW50KDE4MGRlZywgcmdiYSgyNTUsMjU1LDI1NSwuNzgpLCByZ2JhKDI1NSwyNTUsMjU1LDApKTsKICB0cmFuc2Zvcm06cm90YXRlKC0xNGRlZyk7CiAgcG9pbnRlci1ldmVudHM6bm9uZTsKfQouYWRtaW4tYnViYmxlLXRleHR7CiAgcG9zaXRpb246cmVsYXRpdmU7CiAgei1pbmRleDoxOwogIG1heC13aWR0aDoxMDAlOwogIHRleHQtc2hhZG93OjAgMnB4IDEwcHggcmdiYSgwLDAsMCwuMik7CiAgd29yZC1icmVhazpicmVhay13b3JkOwp9Ci5hZG1pbi1idWJibGUtY2xvc2V7CiAgcG9zaXRpb246YWJzb2x1dGU7CiAgdG9wOjhweDsKICByaWdodDo4cHg7CiAgd2lkdGg6MjhweDsKICBoZWlnaHQ6MjhweDsKICBib3JkZXI6bm9uZTsKICBib3JkZXItcmFkaXVzOjk5OXB4OwogIGJhY2tncm91bmQ6I2ZmZmZmZjsKICBjb2xvcjojMTEzMDYzOwogIGZvbnQtc2l6ZToxOHB4OwogIGZvbnQtd2VpZ2h0OjkwMDsKICBsaW5lLWhlaWdodDoxOwogIGRpc3BsYXk6Z3JpZDsKICBwbGFjZS1pdGVtczpjZW50ZXI7CiAgYm94LXNoYWRvdzowIDhweCAxNnB4IHJnYmEoMTcsNDgsOTksLjIyKTsKICBjdXJzb3I6cG9pbnRlcjsKICB6LWluZGV4OjI7Cn0KLmFkbWluLWJ1YmJsZS1jbG9zZTphY3RpdmV7CiAgdHJhbnNmb3JtOnNjYWxlKC45NCk7Cn0KLmFkbWluLWJ1YmJsZS5idW1wewogIGFuaW1hdGlvbjphZG1pbkJ1YmJsZUJ1bXAgLjI4cyBlYXNlOwp9CkBrZXlmcmFtZXMgYWRtaW5CdWJibGVCdW1wewogIDAle3RyYW5zZm9ybTp0cmFuc2xhdGUodmFyKC0tYnViYmxlLXgpLHZhcigtLWJ1YmJsZS15KSkgc2NhbGUoMSl9CiAgNDUle3RyYW5zZm9ybTp0cmFuc2xhdGUodmFyKC0tYnViYmxlLXgpLHZhcigtLWJ1YmJsZS15KSkgc2NhbGUoMS4xMil9CiAgMTAwJXt0cmFuc2Zvcm06dHJhbnNsYXRlKHZhcigtLWJ1YmJsZS14KSx2YXIoLS1idWJibGUteSkpIHNjYWxlKDEpfQp9Cgo=').decode("utf-8")
+css=Path('.github/bubble_v1186.css').read_text(encoding='utf-8')
 need("</style>" in s,"style close missing")
 s=s.replace("</style>",css+"\n</style>",1)
 
-js=base64.b64decode('Y29uc3QgQURNSU5fQlVCQkxFX1RBVU5UUz1bCiAgIuS4jeaYr+WPq+S9oOS4jeimgem7nuWXjiIsCiAgIuaBreWWnO+8jOWPiOWkmuS4gOmhhiIsCiAgIuS9oOS7peeCuumCo+aYr+mXnOmWie+8nyIsCiAgIumAmemhhuaYr+S9oOiHquW3seeUn+eahCIsCiAgIuaJi+W+iOeZouaYr+S4jeaYryIsCiAgIuWGjeaMieS4gOasoeeci+eci+WViiIsCiAgIueuoeeQhuWToeeahOiHquWItuWKm++8mjAiLAogICLlhbblr6bmlL7okZflsLHmnIPororlsI8iLAogICLkvaDlho3pu57vvIzmiJHlho3nlJ8iLAogICLkuI3opoHmgKrmiJHvvIzmmK/kvaDmjInnmoQiLAogICLpgJnkuI3mmK/lj4nmjonvvIzmmK/nuYHmrpYiLAogICLkvaDnnJ/nmoTlvojmg7Ppl5zmjonmiJHmrLgiCl07CmNvbnN0IEFETUlOX0JVQkJMRV9JRExFX01TPTE1MDAwOwpjb25zdCBBRE1JTl9CVUJCTEVfR1JPV1RIPS4wNTsKY29uc3QgQURNSU5fQlVCQkxFX1NIUklOS19GQUNUT1I9Ljk7CmNvbnN0IEFETUlOX0JVQkJMRV9NSU5fU0NBTEU9LjI7CmNvbnN0IEFETUlOX0JVQkJMRV9NQVhfU0NBTEU9Mi4yNTsKY29uc3QgQURNSU5fQlVCQkxFX01BWF9DT1VOVD0yMDsKY29uc3QgQURNSU5fQlVCQkxFX0JBU0VfU0laRT0xMTY7CgpsZXQgYWRtaW5CdWJibGVTdGF0ZT17CiAgcnVubmluZzpmYWxzZSwKICByYWY6MCwKICBsYXN0VGljazowLAogIHNlcTowLAogIGJ1YmJsZXM6W10KfTsKCmZ1bmN0aW9uIGJ1YmJsZVpvbmUoKXsKICByZXR1cm4gJCgiI2FkbWluQnViYmxlWm9uZSIpOwp9CmZ1bmN0aW9uIHJhbmRvbUJ1YmJsZVRhdW50KCl7CiAgcmV0dXJuIEFETUlOX0JVQkJMRV9UQVVOVFNbTWF0aC5mbG9vcihNYXRoLnJhbmRvbSgpKkFETUlOX0JVQkJMRV9UQVVOVFMubGVuZ3RoKV07Cn0KZnVuY3Rpb24gYWRtaW5CdWJibGVCb3VuZHMoKXsKICBjb25zdCB0YWJzPSQoIiNtYWluVGFicyIpOwogIGNvbnN0IHRvcEJhc2U9dGFicz8uZ2V0Qm91bmRpbmdDbGllbnRSZWN0Py4oKS5ib3R0b218fDE2MDsKICByZXR1cm4gewogICAgbGVmdDoxMiwKICAgIHRvcDpNYXRoLm1heCh0b3BCYXNlKzEyLDE0OCksCiAgICByaWdodDp3aW5kb3cuaW5uZXJXaWR0aC0xMiwKICAgIGJvdHRvbTp3aW5kb3cuaW5uZXJIZWlnaHQtMTQKICB9Owp9CmZ1bmN0aW9uIGFwcGx5QnViYmxlWm9uZUJvdW5kcygpewogIGNvbnN0IHpvbmU9YnViYmxlWm9uZSgpOwogIGlmKCF6b25lKXJldHVybjsKICBjb25zdCBiPWFkbWluQnViYmxlQm91bmRzKCk7CiAgem9uZS5zdHlsZS5sZWZ0PWAke2IubGVmdH1weGA7CiAgem9uZS5zdHlsZS50b3A9YCR7Yi50b3B9cHhgOwogIHpvbmUuc3R5bGUud2lkdGg9YCR7TWF0aC5tYXgoMCxiLnJpZ2h0LWIubGVmdCl9cHhgOwogIHpvbmUuc3R5bGUuaGVpZ2h0PWAke01hdGgubWF4KDAsYi5ib3R0b20tYi50b3ApfXB4YDsKfQpmdW5jdGlvbiBjbGVhckFkbWluQnViYmxlRWxlbWVudHMoKXsKICBjb25zdCB6b25lPWJ1YmJsZVpvbmUoKTsKICBpZih6b25lKXpvbmUuaW5uZXJIVE1MPSIiOwp9CmZ1bmN0aW9uIHJlbmRlckFkbWluQnViYmxlKGJ1YmJsZSl7CiAgY29uc3Qgc2l6ZT1NYXRoLnJvdW5kKEFETUlOX0JVQkJMRV9CQVNFX1NJWkUqYnViYmxlLnNjYWxlKTsKICBidWJibGUuc2l6ZT1zaXplOwogIGJ1YmJsZS5lbC5zdHlsZS53aWR0aD1gJHtzaXplfXB4YDsKICBidWJibGUuZWwuc3R5bGUuaGVpZ2h0PWAke3NpemV9cHhgOwogIGJ1YmJsZS5lbC5zdHlsZS5sZWZ0PWAke2J1YmJsZS54fXB4YDsKICBidWJibGUuZWwuc3R5bGUudG9wPWAke2J1YmJsZS55fXB4YDsKICBidWJibGUuZWwuc3R5bGUuc2V0UHJvcGVydHkoIi0tYnViYmxlLXgiLGAke2J1YmJsZS54fXB4YCk7CiAgYnViYmxlLmVsLnN0eWxlLnNldFByb3BlcnR5KCItLWJ1YmJsZS15IixgJHtidWJibGUueX1weGApOwogIGJ1YmJsZS50ZXh0RWwuc3R5bGUuZm9udFNpemU9YCR7TWF0aC5tYXgoMTEsTWF0aC5taW4oMTgsTWF0aC5yb3VuZCgxMStidWJibGUuc2NhbGUqMy4yKSkpfXB4YDsKICBidWJibGUudGV4dEVsLnRleHRDb250ZW50PWJ1YmJsZS50ZXh0Owp9CmZ1bmN0aW9uIGNsYW1wQnViYmxlUG9zaXRpb24oYnViYmxlKXsKICBjb25zdCB6b25lPWJ1YmJsZVpvbmUoKTsKICBpZighem9uZSlyZXR1cm47CiAgY29uc3QgbWF4WD1NYXRoLm1heCgwLHpvbmUuY2xpZW50V2lkdGgtYnViYmxlLnNpemUpOwogIGNvbnN0IG1heFk9TWF0aC5tYXgoMCx6b25lLmNsaWVudEhlaWdodC1idWJibGUuc2l6ZSk7CiAgYnViYmxlLng9TWF0aC5taW4obWF4WCxNYXRoLm1heCgwLGJ1YmJsZS54KSk7CiAgYnViYmxlLnk9TWF0aC5taW4obWF4WSxNYXRoLm1heCgwLGJ1YmJsZS55KSk7Cn0KZnVuY3Rpb24gbWFrZUFkbWluQnViYmxlKHt4LHksc2NhbGU9MSx0ZXh0PSLlhYjliKXpu54ifT17fSl7CiAgY29uc3Qgem9uZT1idWJibGVab25lKCk7CiAgaWYoIXpvbmUpcmV0dXJuIG51bGw7CgogIGNvbnN0IGVsPWRvY3VtZW50LmNyZWF0ZUVsZW1lbnQoImRpdiIpOwogIGVsLmNsYXNzTmFtZT0iYWRtaW4tYnViYmxlIjsKICBlbC5pbm5lckhUTUw9JzxidXR0b24gY2xhc3M9ImFkbWluLWJ1YmJsZS1jbG9zZSIgdHlwZT0iYnV0dG9uIiBhcmlhLWxhYmVsPSLpl5zplokiPsOXPC9idXR0b24+PGRpdiBjbGFzcz0iYWRtaW4tYnViYmxlLXRleHQiPjwvZGl2Pic7CgogIGNvbnN0IGJ1YmJsZT17CiAgICBpZDorK2FkbWluQnViYmxlU3RhdGUuc2VxLAogICAgZWwsCiAgICB0ZXh0RWw6ZWwucXVlcnlTZWxlY3RvcigiLmFkbWluLWJ1YmJsZS10ZXh0IiksCiAgICBjbG9zZUJ0bjplbC5xdWVyeVNlbGVjdG9yKCIuYWRtaW4tYnViYmxlLWNsb3NlIiksCiAgICB4Ong/PzAsCiAgICB5Onk/PzAsCiAgICBzY2FsZTpzY2FsZSwKICAgIHZ4OihNYXRoLnJhbmRvbSgpPi41PzE6LTEpKigwLjQyK01hdGgucmFuZG9tKCkqMC40OCksCiAgICB2eTooTWF0aC5yYW5kb20oKT4uNT8xOi0xKSooMC4zOCtNYXRoLnJhbmRvbSgpKjAuNDIpLAogICAgbGFzdEludGVyYWN0aW9uOkRhdGUubm93KCksCiAgICB0ZXh0CiAgfTsKCiAgYnViYmxlLmNsb3NlQnRuLmFkZEV2ZW50TGlzdGVuZXIoImNsaWNrIixlPT57CiAgICBlLnByZXZlbnREZWZhdWx0KCk7CiAgICBlLnN0b3BQcm9wYWdhdGlvbigpOwogICAgZXhwbG9kZUFkbWluQnViYmxlKGJ1YmJsZSk7CiAgfSk7CgogIHpvbmUuYXBwZW5kQ2hpbGQoZWwpOwogIHJlbmRlckFkbWluQnViYmxlKGJ1YmJsZSk7CiAgY2xhbXBCdWJibGVQb3NpdGlvbihidWJibGUpOwogIHJlbmRlckFkbWluQnViYmxlKGJ1YmJsZSk7CiAgYWRtaW5CdWJibGVTdGF0ZS5idWJibGVzLnB1c2goYnViYmxlKTsKICByZXR1cm4gYnViYmxlOwp9CmZ1bmN0aW9uIHNwYXduQWRtaW5CdWJibGVOZWFyKHNvdXJjZSl7CiAgaWYoYWRtaW5CdWJibGVTdGF0ZS5idWJibGVzLmxlbmd0aD49QURNSU5fQlVCQkxFX01BWF9DT1VOVClyZXR1cm47CiAgY29uc3Qgem9uZT1idWJibGVab25lKCk7CiAgaWYoIXpvbmUpcmV0dXJuOwoKICBjb25zdCBhbmdsZT1NYXRoLnJhbmRvbSgpKk1hdGguUEkqMjsKICBjb25zdCBkaXN0YW5jZT01MCtNYXRoLnJhbmRvbSgpKjkwOwogIGNvbnN0IHNpemU9TWF0aC5yb3VuZChBRE1JTl9CVUJCTEVfQkFTRV9TSVpFKTsKICBjb25zdCBtYXhYPU1hdGgubWF4KDAsem9uZS5jbGllbnRXaWR0aC1zaXplKTsKICBjb25zdCBtYXhZPU1hdGgubWF4KDAsem9uZS5jbGllbnRIZWlnaHQtc2l6ZSk7CgogIGNvbnN0IHg9TWF0aC5taW4obWF4WCxNYXRoLm1heCgwLHNvdXJjZS54K01hdGguY29zKGFuZ2xlKSpkaXN0YW5jZSkpOwogIGNvbnN0IHk9TWF0aC5taW4obWF4WSxNYXRoLm1heCgwLHNvdXJjZS55K01hdGguc2luKGFuZ2xlKSpkaXN0YW5jZSkpOwoKICBtYWtlQWRtaW5CdWJibGUoewogICAgeCwKICAgIHksCiAgICBzY2FsZToxLAogICAgdGV4dDpyYW5kb21CdWJibGVUYXVudCgpCiAgfSk7Cn0KZnVuY3Rpb24gZXhwbG9kZUFkbWluQnViYmxlKGJ1YmJsZSl7CiAgYnViYmxlLnNjYWxlPU1hdGgubWluKEFETUlOX0JVQkJMRV9NQVhfU0NBTEUsTnVtYmVyKChidWJibGUuc2NhbGUrQURNSU5fQlVCQkxFX0dST1dUSCkudG9GaXhlZCgzKSkpOwogIGJ1YmJsZS5sYXN0SW50ZXJhY3Rpb249RGF0ZS5ub3coKTsKICBidWJibGUudGV4dD1yYW5kb21CdWJibGVUYXVudCgpOwogIGJ1YmJsZS52eCo9MS4wNDsKICBidWJibGUudnkqPTEuMDQ7CiAgYnViYmxlLmVsLmNsYXNzTGlzdC5yZW1vdmUoImJ1bXAiKTsKICB2b2lkIGJ1YmJsZS5lbC5vZmZzZXRXaWR0aDsKICBidWJibGUuZWwuY2xhc3NMaXN0LmFkZCgiYnVtcCIpOwogIHJlbmRlckFkbWluQnViYmxlKGJ1YmJsZSk7CiAgY2xhbXBCdWJibGVQb3NpdGlvbihidWJibGUpOwogIHJlbmRlckFkbWluQnViYmxlKGJ1YmJsZSk7CiAgc3Bhd25BZG1pbkJ1YmJsZU5lYXIoYnViYmxlKTsKfQpmdW5jdGlvbiByZW1vdmVBZG1pbkJ1YmJsZShidWJibGUpewogIGJ1YmJsZS5lbD8ucmVtb3ZlKCk7CiAgYWRtaW5CdWJibGVTdGF0ZS5idWJibGVzPWFkbWluQnViYmxlU3RhdGUuYnViYmxlcy5maWx0ZXIoeD0+eC5pZCE9PWJ1YmJsZS5pZCk7Cn0KZnVuY3Rpb24gcmVzZXRBZG1pbkJ1YmJsZXMoKXsKICBhZG1pbkJ1YmJsZVN0YXRlLnJ1bm5pbmc9ZmFsc2U7CiAgaWYoYWRtaW5CdWJibGVTdGF0ZS5yYWYpY2FuY2VsQW5pbWF0aW9uRnJhbWUoYWRtaW5CdWJibGVTdGF0ZS5yYWYpOwogIGFkbWluQnViYmxlU3RhdGUucmFmPTA7CiAgYWRtaW5CdWJibGVTdGF0ZS5sYXN0VGljaz0wOwogIGFkbWluQnViYmxlU3RhdGUuYnViYmxlcz1bXTsKICBjbGVhckFkbWluQnViYmxlRWxlbWVudHMoKTsKICBidWJibGVAb25lKCk/LmNsYXNzTGlzdC5hZGQoImhpZGRlbiIpOwp9CmZ1bmN0aW9uIHRpY2tBZG1pbkJ1YmJsZXModHMpewogIGlmKCFhZG1pbkJ1YmJsZVN0YXRlLnJ1bm5pbmcpcmV0dXJuOwoKICBjb25zdCB6b25lPWJ1YmJsZVpvbmUoKTsKICBpZighem9uZSl7CiAgICByZXNldEFkbWluQnViYmxlcygpOwogICAgcmV0dXJuOwogIH0KCiAgYXBwbHlCdWJibGVab25lQm91bmRzKCk7CgogIGNvbnN0IGR0PWFkbWluQnViYmxlU3RhdGUubGFzdFRpY2s/TWF0aC5taW4oMi4xLCh0cy1hZG1pbkJ1YmJsZVN0YXRlLmxhc3RUaWNrKS8xNi42Nyk6MTsKICBhZG1pbkJ1YmJsZVN0YXRlLmxhc3RUaWNrPXRzOwogIGNvbnN0IG5vdz1EYXRlLm5vdygpOwoKICBmb3IoY29uc3QgYnViYmxlIG9mIFsuLi5hZG1pbkJ1YmJsZVN0YXRlLmJ1YmJsZXNdKXsKICAgIGlmKG5vdy1idWJibGUubGFzdEludGVyYWN0aW9uPj1BRE1JTl9CVUJCTEVfSURMRV9NUyl7CiAgICAgIGJ1YmJsZS5zY2FsZT1OdW1iZXIoKGJ1YmJsZS5zY2FsZSpBRE1JTl9CVUJCTEVfU0hSSU5LX0ZBQ1RPUikudG9GaXhlZCgzKSk7CiAgICAgIGJ1YmJsZS5sYXN0SW50ZXJhY3Rpb249bm93OwogICAgICBpZihidWJibGUuc2NhbGU8QURNSU5fQlVCQkxFX01JTl9TQ0FMRSl7CiAgICAgICAgcmVtb3ZlQWRtaW5CdWJibGUoYnViYmxlKTsKICAgICAgICBjb250aW51ZTsKICAgICAgfQogICAgICByZW5kZXJBZG1pbkJ1YmJsZShidWJibGUpOwogICAgfQoKICAgIGNvbnN0IG1heFg9TWF0aC5tYXgoMCx6b25lLmNsaWVudFdpZHRoLWJ1YmJsZS5zaXplKTsKICAgIGNvbnN0IG1heFk9TWF0aC5tYXgoMCx6b25lLmNsaWVudEhlaWdodC1idWJibGUuc2l6ZSk7CgogICAgYnViYmxlLngrPWJ1YmJsZS52eCpkdDsKICAgIGJ1YmJsZS55Kz1idWJibGUudnkqZHQ7CgogICAgaWYoYnViYmxlLng8PTApewogICAgICBidWJibGUueD0wOwogICAgICBidWJibGUudng9TWF0aC5hYnMoYnViYmxlLnZ4KTsKICAgIH1lbHNlIGlmKGJ1YmJsZS54Pj1tYXhYKXsKICAgICAgYnViYmxlLng9bWF4WDsKICAgICAgYnViYmxlLnZ4PS1NYXRoLmFicyhidWJibGUudngpOwogICAgfQoKICAgIGlmKGJ1YmJsZS55PD0wKXsKICAgICAgYnViYmxlLnk9MDsKICAgICAgYnViYmxlLnZ5PU1hdGguYWJzKGJ1YmJsZS52eSk7CiAgICB9ZWxzZSBpZihidWJibGUueT49bWF4WSl7CiAgICAgIGJ1YmJsZS55PW1heFk7CiAgICAgIGJ1YmJsZS52eT0tTWF0aC5hYnMoYnViYmxlLnZ5KTsKICAgIH0KCiAgICByZW5kZXJBZG1pbkJ1YmJsZShidWJibGUpOwogIH0KCiAgYWRtaW5CdWJibGVTdGF0ZS5yYWY9cmVxdWVzdEFuaW1hdGlvbkZyYW1lKHRpY2tBZG1pbkJ1YmJsZXMpOwp9CmZ1bmN0aW9uIHN0YXJ0QWRtaW5CdWJibGVzKCl7CiAgcmVzZXRBZG1pbkJ1YmJsZXMoKTsKCiAgY29uc3Qgem9uZT1idWJibGVAb25lKCk7CiAgaWYoIXpvbmUpcmV0dXJuOwoKICBhcHBseUJ1YmJsZVpvbmVCb3VuZHMoKTsKICB6b25lLmNsYXNzTGlzdC5yZW1vdmUoImhpZGRlbiIpOwoKICBjb25zdCBzdGFydFg9TWF0aC5tYXgoMCxNYXRoLm1pbih6b25lLmNsaWVudFdpZHRoLUFETUlOX0JVQkJMRV9CQVNFX1NJWkUsIHpvbmUuY2xpZW50V2lkdGgqLjU0KSk7CiAgY29uc3Qgc3RhcnRZPU1hdGgubWF4KDAsTWF0aC5taW4oem9uZS5jbGllbnRIZWlnaHQtQURNSU5fQlVCQkxFX0JBU0VfU0laRSwgem9uZS5jbGllbnRIZWlnaHQqLjE4KSk7CgogIG1ha2VBZG1pbkJ1YmJsZSh7CiAgICB4OnN0YXJ0WCwKICAgIHk6c3RhcnRZLAogICAgc2NhbGU6MSwKICAgIHRleHQ6IuWFiOWIpem7niIKICB9KTsKCiAgYWRtaW5CdWJibGVTdGF0ZS5ydW5uaW5nPXRydWU7CiAgYWRtaW5CdWJibGVTdGF0ZS5sYXN0VGljaz0wOwogIGFkbWluQnViYmxlU3RhdGUucmFmPXJlcXVlc3RBbmltYXRpb25GcmFtZSh0aWNrQWRtaW5CdWJibGVzKTsKfQp3aW5kb3cuYWRkRXZlbnRMaXN0ZW5lcigicmVzaXplIiwoKT0+ewogIGlmKCFhZG1pbkJ1YmJsZVN0YXRlLnJ1bm5pbmcpcmV0dXJuOwogIGFwcGx5QnViYmxlWm9uZUJvdW5kcygpOwogIGZvcihjb25zdCBidWJibGUgb2YgYWRtaW5CdWJibGVTdGF0ZS5idWJibGVzKXsKICAgIGNsYW1wQnViYmxlUG9zaXRpb24oYnViYmxlKTsKICAgIHJlbmRlckFkbWluQnViYmxlKGJ1YmJsZSk7CiAgfQp9KTs=').decode("utf-8")
+js=Path('.github/bubble_v1186.js').read_text(encoding='utf-8')
 need("async function openAdmin(){" in s,"openAdmin marker missing")
 s=s.replace("async function openAdmin(){",js+"\n\nasync function openAdmin(){",1)
 
-show_old='function showView(name){\n  $("#publicView").classList.toggle("active",name==="public");\n  $("#adminView").classList.toggle("active",name==="admin");\n  if(name==="public"){\n    closePublicTool();\n  }\n}'
-show_new='function showView(name){\n  $("#publicView").classList.toggle("active",name==="public");\n  $("#adminView").classList.toggle("active",name==="admin");\n  if(name==="public"){\n    closePublicTool();\n    resetAdminBubbles();\n  }\n}'
+show_old='''function showView(name){
+  $("#publicView").classList.toggle("active",name==="public");
+  $("#adminView").classList.toggle("active",name==="admin");
+  if(name==="public"){
+    closePublicTool();
+  }
+}'''
+show_new='''function showView(name){
+  $("#publicView").classList.toggle("active",name==="public");
+  $("#adminView").classList.toggle("active",name==="admin");
+  if(name==="public"){
+    closePublicTool();
+    resetAdminBubbles();
+  }
+}'''
 need(show_old in s,"showView block missing")
 s=s.replace(show_old,show_new,1)
 
-open_old='async function openAdmin(){\n  const user=await getVerifiedAdmin();\n  if(!user){\n    $("#loginPanel").classList.remove("hidden");\n    $("#adminMain").classList.add("hidden");\n    return;\n  }\n  $("#loginPanel").classList.add("hidden");\n  $("#adminMain").classList.remove("hidden");\n  $("#adminIdentity").textContent=user.email||"管理員";\n  const role=await loadAdminRole();\n  $("#adminIdentity").textContent=`${currentAdminName}管理員 · ${user.email||"管理員"}${role==="owner"?" · Owner":""}`;\n  await Promise.allSettled([loadMessages(),loadSettings()]);\n  startRealtime();\n}'
-open_new='async function openAdmin(){\n  const user=await getVerifiedAdmin();\n  if(!user){\n    resetAdminBubbles();\n    $("#loginPanel").classList.remove("hidden");\n    $("#adminMain").classList.add("hidden");\n    return;\n  }\n  $("#loginPanel").classList.add("hidden");\n  $("#adminMain").classList.remove("hidden");\n  $("#adminIdentity").textContent=user.email||"管理員";\n  const role=await loadAdminRole();\n  $("#adminIdentity").textContent=`${currentAdminName}管理員 · ${user.email||"管理員"}${role==="owner"?" · Owner":""}`;\n  await Promise.allSettled([loadMessages(),loadSettings()]);\n  startRealtime();\n  startAdminBubbles();\n}'
+open_old='''async function openAdmin(){
+  const user=await getVerifiedAdmin();
+  if(!user){
+    $("#loginPanel").classList.remove("hidden");
+    $("#adminMain").classList.add("hidden");
+    return;
+  }
+  $("#loginPanel").classList.add("hidden");
+  $("#adminMain").classList.remove("hidden");
+  $("#adminIdentity").textContent=user.email||"管理員";
+  const role=await loadAdminRole();
+  $("#adminIdentity").textContent=`${currentAdminName}管理員 · ${user.email||"管理員"}${role==="owner"?" · Owner":""}`;
+  await Promise.allSettled([loadMessages(),loadSettings()]);
+  startRealtime();
+}'''
+open_new='''async function openAdmin(){
+  const user=await getVerifiedAdmin();
+  if(!user){
+    resetAdminBubbles();
+    $("#loginPanel").classList.remove("hidden");
+    $("#adminMain").classList.add("hidden");
+    return;
+  }
+  $("#loginPanel").classList.add("hidden");
+  $("#adminMain").classList.remove("hidden");
+  $("#adminIdentity").textContent=user.email||"管理員";
+  const role=await loadAdminRole();
+  $("#adminIdentity").textContent=`${currentAdminName}管理員 · ${user.email||"管理員"}${role==="owner"?" · Owner":""}`;
+  await Promise.allSettled([loadMessages(),loadSettings()]);
+  startRealtime();
+  startAdminBubbles();
+}'''
 need(open_old in s,"production openAdmin block missing")
 s=s.replace(open_old,open_new,1)
 
-logout_old='  await supabase.auth.signOut();\n\n  $("#adminMain").classList.add("hidden");'
-logout_new='  await supabase.auth.signOut();\n\n  resetAdminBubbles();\n  $("#adminMain").classList.add("hidden");'
+logout_old='''  await supabase.auth.signOut();
+
+  $("#adminMain").classList.add("hidden");'''
+logout_new='''  await supabase.auth.signOut();
+
+  resetAdminBubbles();
+  $("#adminMain").classList.add("hidden");'''
 need(logout_old in s,"logout block missing")
 s=s.replace(logout_old,logout_new,1)
 
