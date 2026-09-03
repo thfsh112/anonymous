@@ -3187,23 +3187,23 @@ body{
 
     <div class="app-control-card">
       <div class="app-control-copy">
-        <strong>新匿名訊息通知</strong>
+        <strong>這台裝置的新匿名訊息通知</strong>
         <span id="pushStatusText">正在檢查通知狀態…</span>
       </div>
       <div class="app-control-actions">
-        <button class="primary" id="enablePushBtn" type="button">開啟通知</button>
-        <button class="secondary hidden" id="disablePushBtn" type="button">關閉通知</button>
+        <button class="primary" id="enablePushBtn" type="button">開啟此裝置</button>
+        <button class="secondary hidden" id="disablePushBtn" type="button">關閉此裝置</button>
       </div>
     </div>
 
     <div class="app-help-box" id="pwaHelpBox">
-      通知內容只會顯示「你收到一則新的匿名訊息」，不會把匿名投稿正文顯示在鎖定畫面。登出後會同步取消這台裝置的通知訂閱。
+      通知內容只會顯示「你收到一則新的匿名訊息」，不會把匿名投稿正文顯示在鎖定畫面。每台手機／裝置會各自保存自己的通知開關；同一帳號在其他裝置的設定不受影響。登出時會暫停這台裝置推播，重新登入同一帳號後會依這台裝置原本設定自動恢復。
     </div>
   </div>
 </section>
 </div></div></section>
 </main>
-<button class="version-entry" id="versionEntry" type="button" aria-label="版本資訊">v1.18.9</button>
+<button class="version-entry" id="versionEntry" type="button" aria-label="版本資訊">v1.18.10</button>
 <div class="toast" id="toast"></div>
 <dialog id="storyDialog">
   <div class="modal share-modal">
@@ -4407,6 +4407,7 @@ async function openAdmin(){
   const role=await loadAdminRole();
   $("#adminIdentity").textContent=`${currentAdminName}管理員 · ${user.email||"管理員"}${role==="owner"?" · Owner":""}`;
   await Promise.allSettled([loadMessages(),loadSettings()]);
+  await syncCurrentDevicePushPreference(user);
   startRealtime();
   startAdminBubbles();
 }
@@ -5157,6 +5158,21 @@ async function getCurrentPushSubscription(){
   }
 }
 
+const DEVICE_PUSH_PREF_PREFIX="anonymous_mailbox_device_push_";
+function devicePushPreferenceKey(userId){
+  return `${DEVICE_PUSH_PREF_PREFIX}${String(userId||"")}`;
+}
+function readDevicePushPreference(userId){
+  if(!userId)return null;
+  const raw=localStorage.getItem(devicePushPreferenceKey(userId));
+  if(raw===null)return null;
+  return raw==="1";
+}
+function writeDevicePushPreference(userId,enabled){
+  if(!userId)return;
+  localStorage.setItem(devicePushPreferenceKey(userId),enabled?"1":"0");
+}
+
 async function detachCurrentDevicePush(deleteServerRow=false){
   try{
     const subscription=await getCurrentPushSubscription();
@@ -5187,6 +5203,67 @@ async function detachCurrentDevicePush(deleteServerRow=false){
   }catch(error){
     console.warn("detach_push_failed",error);
     return false;
+  }
+}
+
+async function attachCurrentDevicePush(adminUser){
+  if(!adminUser?.id)throw new Error("admin_required");
+  if(!("Notification" in window)||!("PushManager" in window)||!("serviceWorker" in navigator)){
+    throw new Error("push_unsupported");
+  }
+  if(Notification.permission!=="granted")throw new Error("notification_permission_missing");
+
+  const reg=pwaRegistration||await registerPwa()||await navigator.serviceWorker.ready;
+  try{await reg.update()}catch{}
+
+  let subscription=await reg.pushManager.getSubscription();
+  if(!subscription){
+    subscription=await reg.pushManager.subscribe({
+      userVisibleOnly:true,
+      applicationServerKey:urlBase64ToUint8Array(PUSH_VAPID_PUBLIC_KEY)
+    });
+  }
+
+  const json=subscription.toJSON();
+  if(!json.endpoint||!json.keys?.p256dh||!json.keys?.auth){
+    throw new Error("subscription_keys_missing");
+  }
+
+  const {error}=await supabase.from("push_subscriptions").upsert({
+    user_id:adminUser.id,
+    endpoint:json.endpoint,
+    p256dh:json.keys.p256dh,
+    auth_secret:json.keys.auth
+  },{onConflict:"endpoint"});
+  if(error)throw error;
+
+  return subscription;
+}
+
+async function syncCurrentDevicePushPreference(adminUser){
+  if(!adminUser?.id)return;
+  if(!("Notification" in window)||!("PushManager" in window)||!("serviceWorker" in navigator))return;
+
+  const preference=readDevicePushPreference(adminUser.id);
+  const currentSubscription=await getCurrentPushSubscription();
+
+  if(preference===null){
+    if(Notification.permission==="granted"&&currentSubscription){
+      writeDevicePushPreference(adminUser.id,true);
+      try{await attachCurrentDevicePush(adminUser)}catch(error){console.warn("push_legacy_sync_failed",error)}
+    }
+    return;
+  }
+
+  if(preference===true){
+    if(Notification.permission==="granted"){
+      try{await attachCurrentDevicePush(adminUser)}catch(error){console.warn("push_device_restore_failed",error)}
+    }
+    return;
+  }
+
+  if(currentSubscription){
+    await detachCurrentDevicePush(true);
   }
 }
 
@@ -5287,57 +5364,25 @@ $("#enablePushBtn").addEventListener("click",async()=>{
     return toast("目前環境不支援 Web Push");
   }
 
-  // Apple 要求通知權限請求直接由使用者點擊觸發。
-  // 這裡先同步啟動 permission request，再並行確認管理員身分。
   const permissionPromise=Notification.requestPermission();
   const adminPromise=getVerifiedAdmin();
-
-  const [permission,adminUser]=await Promise.all([
-    permissionPromise,
-    adminPromise
-  ]);
+  const [permission,adminUser]=await Promise.all([permissionPromise,adminPromise]);
 
   if(!adminUser){
     await refreshPwaPanel();
     return toast("請先登入管理員");
   }
-
   if(permission!=="granted"){
     await refreshPwaPanel();
     return toast("未取得通知權限");
   }
 
   try{
-    const reg=pwaRegistration||await registerPwa()||await navigator.serviceWorker.ready;
-    try{await reg.update()}catch{}
-
-    let subscription=await reg.pushManager.getSubscription();
-
-    if(!subscription){
-      subscription=await reg.pushManager.subscribe({
-        userVisibleOnly:true,
-        applicationServerKey:urlBase64ToUint8Array(PUSH_VAPID_PUBLIC_KEY)
-      });
-    }
-
-    const json=subscription.toJSON();
-    if(!json.endpoint||!json.keys?.p256dh||!json.keys?.auth){
-      throw new Error("subscription_keys_missing");
-    }
-
-    const {error}=await supabase.from("push_subscriptions").upsert({
-      user_id:adminUser.id,
-      endpoint:json.endpoint,
-      p256dh:json.keys.p256dh,
-      auth_secret:json.keys.auth
-    },{onConflict:"endpoint"});
-
-    if(error)throw error;
-
+    const subscription=await attachCurrentDevicePush(adminUser);
+    writeDevicePushPreference(adminUser.id,true);
     let host="";
-    try{host=new URL(json.endpoint).host}catch{}
-
-    toast(host.includes("apple.com")?"Apple 通知已連線":"通知已開啟");
+    try{host=new URL(subscription.endpoint).host}catch{}
+    toast(host.includes("apple.com")?"這台 Apple 裝置通知已開啟":"這台裝置通知已開啟");
     await refreshPwaPanel();
   }catch(error){
     console.error("enable_push_failed",error);
@@ -5347,8 +5392,10 @@ $("#enablePushBtn").addEventListener("click",async()=>{
 
 $("#disablePushBtn").addEventListener("click",async()=>{
   try{
+    const adminUser=await getVerifiedAdmin();
+    if(adminUser?.id)writeDevicePushPreference(adminUser.id,false);
     await detachCurrentDevicePush(true);
-    toast("通知已關閉");
+    toast("這台裝置通知已關閉");
     await refreshPwaPanel();
   }catch(error){
     console.error("disable_push_failed",error);
