@@ -1,0 +1,12 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><title>訂飯管理後台</title><link rel="stylesheet" href="style.css"></head>
+<body>
+<header class="top"><div><div class="eyebrow">ADMIN</div><h1>訂飯管理</h1><p id="loginStatus">登入後才能管理菜單與付款。</p></div><a class="admin-link" href="index.html">回前台</a></header>
+<main><section id="loginBox" class="panel"><h2>管理者登入</h2><form id="loginForm"><label>Email<input id="email" type="email" required></label><label>密碼<input id="password" type="password" required></label><button class="primary" type="submit">登入</button></form><p class="hint">使用 Supabase Auth，不把管理密碼寫在網頁裡。</p></section>
+<div id="adminApp" class="hidden"><section class="panel"><div class="section-head"><h2>新增菜單</h2><button class="ghost" onclick="logout()">登出</button></div><form id="menuForm"><label>餐點名稱<input id="menuName" maxlength="100" required placeholder="例如：雞腿便當"></label><label>價格<input id="menuPrice" type="number" min="0" required placeholder="80"></label><label>介紹<textarea id="menuDescription" maxlength="500" placeholder="餐點內容、份量等"></textarea></label><label>菜單照片<input id="menuImage" type="file" accept="image/*"></label><button class="primary" type="submit">新增菜單</button></form></section>
+<section class="panel"><div class="section-head"><h2>菜單管理</h2><span id="adminMenuCount"></span></div><div id="adminMenus"></div></section>
+<section class="panel"><div class="section-head"><h2>訂單 / 付款</h2><span id="adminOrderSummary"></span></div><div id="adminOrders"></div></section>
+<section class="panel"><div class="section-head"><h2>留言</h2></div><div id="adminComments"></div></section></div></main><div id="toast" class="toast"></div>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script><script>window.APP_CONFIG={supabaseUrl:"https://roynzxilxumfzzuezelg.supabase.co",publishableKey:"sb_publishable_nvmHzVjH7bZ8F9cnJYzKCg_PSPlhCXU"};</script><script src="admin.js"></script>
+</body></html>
