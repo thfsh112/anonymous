@@ -1,0 +1,11 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><title>班級訂飯 🍱</title><link rel="stylesheet" href="style.css"></head>
+<body>
+<header class="top"><div><div class="eyebrow">CLASS LUNCH</div><h1>今天吃什麼？🍱</h1><p>選餐、訂飯、留言，付款狀態也會一起整理。</p></div><a class="admin-link" href="admin.html">管理</a></header>
+<main><section><div class="section-head"><h2>今日菜單</h2><span id="menuCount"></span></div><div id="menus" class="menu-grid"><div class="loading">載入中…</div></div></section>
+<section class="panel"><div class="section-head"><h2>今日訂單</h2><span id="orderSummary"></span></div><div id="orders"></div></section></main>
+<div id="orderModal" class="modal hidden"><div class="modal-card"><button class="close" onclick="closeOrder()">×</button><h2 id="orderTitle">訂餐</h2><form id="orderForm"><input type="hidden" id="orderMenuId"><label>姓名<input id="studentName" maxlength="50" required placeholder="例如：小明"></label><label>數量<input id="quantity" type="number" min="1" max="20" value="1" required></label><label>備註<textarea id="orderNote" maxlength="200" placeholder="例如：不要香菜"></textarea></label><button class="primary" type="submit">送出訂單</button></form></div></div>
+<div id="imageModal" class="modal hidden" onclick="closeImage(event)"><div class="image-viewer"><button class="close" onclick="closeImage()">×</button><img id="largeImage" alt="菜單大圖"></div></div><div id="toast" class="toast"></div>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script><script>window.APP_CONFIG={supabaseUrl:"https://roynzxilxumfzzuezelg.supabase.co",publishableKey:"sb_publishable_nvmHzVjH7bZ8F9cnJYzKCg_PSPlhCXU"};</script><script src="app.js"></script>
+</body></html>
