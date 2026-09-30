@@ -1,35 +1,645 @@
-const canvas=document.getElementById('canvas'),ctx=canvas.getContext('2d',{willReadFrequently:true});
-const file=document.getElementById('file'),empty=document.getElementById('empty'),editor=document.getElementById('editor');
-const stageTools=document.getElementById('stageTools'),adjustPanel=document.getElementById('adjustPanel'),filterPanel=document.getElementById('filterPanel'),cameraPanel=document.getElementById('cameraPanel'),effectPanel=document.getElementById('effectPanel');
-let img=new Image(),original=null,sourceName='photo',activeFilter='Original',effects={grain:0,vignette:0,warm:0};
-const controls=[['exposure','曝光',-100,100,0],['contrast','對比',-100,100,0],['highlights','高光',-100,100,0],['shadows','陰影',-100,100,0],['whites','白色',-100,100,0],['blacks','黑色',-100,100,0],['saturation','飽和度',-100,100,0],['vibrance','自然飽和',-100,100,0],['temperature','色溫',-100,100,0],['tint','色調',-100,100,0],['sharpness','銳利度',0,100,0],['fade','褪色',0,100,0],['grain','顆粒',0,100,0],['vignette','暗角',0,100,0]];
+const canvas=document.getElementById('canvas');
+const ctx=canvas.getContext('2d',{willReadFrequently:true});
+const file=document.getElementById('file');
+const empty=document.getElementById('empty');
+const editor=document.getElementById('editor');
+const stageTools=document.getElementById('stageTools');
+const adjustPanel=document.getElementById('adjustPanel');
+const filterPanel=document.getElementById('filterPanel');
+const cameraPanel=document.getElementById('cameraPanel');
+const effectPanel=document.getElementById('effectPanel');
+
+let img=new Image();
+let original=null;
+let sourceName='photo';
+let activeFilter='Original';
+let activeCamera=null;
+let effects={grain:0,vignette:0,warm:0};
+
+const controls=[
+ ['exposure','曝光',-100,100,0],
+ ['contrast','對比',-100,100,0],
+ ['highlights','高光',-100,100,0],
+ ['shadows','陰影',-100,100,0],
+ ['whites','白色',-100,100,0],
+ ['blacks','黑色',-100,100,0],
+ ['saturation','飽和度',-100,100,0],
+ ['vibrance','自然飽和',-100,100,0],
+ ['temperature','色溫',-100,100,0],
+ ['tint','色調',-100,100,0],
+ ['sharpness','銳利度',0,100,0],
+ ['fade','褪色',0,100,0],
+ ['grain','顆粒',0,100,0],
+ ['vignette','暗角',0,100,0]
+];
+
 const values=Object.fromEntries(controls.map(x=>[x[0],x[4]]));
-function makeControls(){adjustPanel.innerHTML=controls.map(([id,name,min,max,val])=>`<div class="row"><div class="rowhead"><span>${name}</span><span class="value" id="v-${id}">${val}</span></div><input type="range" min="${min}" max="${max}" value="${val}" data-id="${id}"></div>`).join('');adjustPanel.querySelectorAll('input').forEach(r=>r.oninput=()=>{values[r.dataset.id]=+r.value;document.getElementById('v-'+r.dataset.id).textContent=r.value;render()})}makeControls();
-const filters=[['Original','none'],['Soft Film','sepia(.12) saturate(.92) contrast(.96)'],['Warm Film','sepia(.22) saturate(1.08) contrast(1.02)'],['Cool Film','saturate(.9) hue-rotate(8deg) contrast(1.05)'],['CCD','saturate(1.25) contrast(1.12)'],['2000s DC','saturate(.82) contrast(1.08) sepia(.08)'],['Polaroid','sepia(.18) saturate(.86) contrast(.94)'],['Instax','brightness(1.05) saturate(.86) contrast(.92)'],['Night Flash','contrast(1.18) saturate(1.08) brightness(.96)'],['Retro','sepia(.3) saturate(.8) contrast(.9)'],['B&W','grayscale(1) contrast(1.08)'],['Faded','sepia(.08) saturate(.72) brightness(1.04)']];
-filterPanel.innerHTML='<div class="filter-grid">'+filters.map(([n,f])=>`<button class="filter ${n==='Original'?'active':''}" data-filter="${n}"><div class="thumb" style="filter:${f}"></div><small>${n}</small></button>`).join('')+'</div>';
-filterPanel.querySelectorAll('.filter').forEach(b=>b.onclick=()=>{activeFilter=b.dataset.filter;filterPanel.querySelectorAll('.filter').forEach(x=>x.classList.remove('active'));b.classList.add('active');render()});
+
+function makeControls(){
+ adjustPanel.innerHTML=controls.map(([id,name,min,max,val])=>`
+ <div class="row">
+  <div class="rowhead"><span>${name}</span><span class="value" id="v-${id}">${val}</span></div>
+  <input type="range" min="${min}" max="${max}" value="${val}" data-id="${id}">
+ </div>`).join('');
+ adjustPanel.querySelectorAll('input').forEach(r=>{
+  r.oninput=()=>{
+   values[r.dataset.id]=+r.value;
+   const v=document.getElementById('v-'+r.dataset.id);
+   if(v)v.textContent=r.value;
+   activeCamera=null;
+   render();
+  };
+ });
+}
+makeControls();
+
+/*
+ * 真正的像素濾鏡。
+ * 每個濾鏡都有自己的：
+ * - RGB 色彩偏移
+ * - 對比 / 飽和度
+ * - 高光與陰影處理
+ * - 黑位 / 白位
+ * - 色溫
+ * - 褪色
+ * 不再只是 CSS filter。
+ */
+const filters={
+ 'Original':{},
+ 'Soft Film':{
+  exposure:2,contrast:-10,saturation:-8,vibrance:14,
+  temperature:5,highlights:-20,shadows:16,fade:5,
+  r:3,g:1,b:-1
+ },
+ 'Warm Film':{
+  exposure:1,contrast:4,saturation:4,vibrance:8,
+  temperature:13,highlights:-16,shadows:8,fade:4,
+  r:7,g:1,b:-6
+ },
+ 'Cool Film':{
+  exposure:0,contrast:7,saturation:-3,vibrance:8,
+  temperature:-16,highlights:-10,shadows:7,fade:2,
+  r:-5,g:1,b:9
+ },
+ 'CCD':{
+  exposure:4,contrast:18,saturation:22,vibrance:18,
+  temperature:-3,highlights:-13,shadows:-5,fade:0,
+  r:2,g:1,b:5,sharp:12
+ },
+ '2000s DC':{
+  exposure:5,contrast:13,saturation:-2,vibrance:6,
+  temperature:3,highlights:-8,shadows:-2,fade:2,
+  r:5,g:2,b:-2,green:3,sharp:5
+ },
+ 'Polaroid':{
+  exposure:7,contrast:-14,saturation:-13,vibrance:3,
+  temperature:10,highlights:-25,shadows:20,fade:11,
+  r:8,g:3,b:-7,matte:12
+ },
+ 'Instax':{
+  exposure:9,contrast:-11,saturation:-10,vibrance:0,
+  temperature:7,highlights:-21,shadows:19,fade:14,
+  r:6,g:4,b:-4,matte:16
+ },
+ 'Night Flash':{
+  exposure:-5,contrast:25,saturation:12,vibrance:16,
+  temperature:-10,highlights:-23,shadows:-24,fade:0,
+  r:-2,g:1,b:8,sharp:8
+ },
+ 'Retro':{
+  exposure:2,contrast:-8,saturation:-16,vibrance:5,
+  temperature:20,highlights:-17,shadows:15,fade:18,
+  r:12,g:3,b:-10,matte:8
+ },
+ 'B&W':{
+  exposure:0,contrast:19,saturation:-100,vibrance:0,
+  highlights:-17,shadows:8,fade:3,
+  mono:1,sharp:5
+ },
+ 'Faded':{
+  exposure:5,contrast:-18,saturation:-25,vibrance:-2,
+  temperature:4,highlights:-20,shadows:20,fade:24,
+  r:5,g:3,b:1,matte:20
+ }
+};
+
+const filterDescriptions={
+ 'Original':'原始照片',
+ 'Soft Film':'柔霧、低對比、底片感',
+ 'Warm Film':'暖黃色、柔和底片',
+ 'Cool Film':'冷藍色、清透感',
+ 'CCD':'高飽和、數位亮感',
+ '2000s DC':'老數位相機、偏綠',
+ 'Polaroid':'奶油白、褪色、柔和',
+ 'Instax':'明亮粉霧、拍立得感',
+ 'Night Flash':'強閃光、高反差',
+ 'Retro':'復古橘黃、褪色',
+ 'B&W':'黑白銀鹽感',
+ 'Faded':'低飽和、霧面褪色'
+};
+
+filterPanel.innerHTML='<div class="filter-grid">'+
+ Object.keys(filters).map(n=>`
+ <button class="filter ${n==='Original'?'active':''}" data-filter="${n}">
+  <div class="thumb"></div><small>${n}</small>
+ </button>`).join('')+
+ '</div>';
+
+filterPanel.querySelectorAll('.filter').forEach(b=>{
+ b.onclick=()=>{
+  activeFilter=b.dataset.filter;
+  activeCamera=null;
+  filterPanel.querySelectorAll('.filter').forEach(x=>x.classList.toggle('active',x===b));
+  render();
+ };
+});
+
 const cameras={
-'35mm 底片':{exposure:-4,contrast:8,highlights:-12,shadows:10,saturation:-5,vibrance:10,temperature:5,tint:2,fade:5,grain:18,vignette:8,filter:'Warm Film'},
-'CCD 數位相機':{exposure:4,contrast:14,highlights:-8,shadows:-3,saturation:18,vibrance:14,temperature:-2,tint:0,fade:0,grain:4,vignette:4,filter:'CCD'},
-'2000s 老 DC':{exposure:2,contrast:10,highlights:-5,shadows:4,saturation:-4,vibrance:5,temperature:3,tint:1,fade:4,grain:8,vignette:3,filter:'2000s DC'},
-'拍立得':{exposure:7,contrast:-7,highlights:-18,shadows:15,saturation:-8,vibrance:0,temperature:9,tint:2,fade:9,grain:10,vignette:0,filter:'Polaroid'},
-'日系底片':{exposure:5,contrast:-5,highlights:-15,shadows:18,saturation:-6,vibrance:10,temperature:4,tint:1,fade:7,grain:12,vignette:2,filter:'Soft Film'},
-'夜間閃光燈':{exposure:-5,contrast:20,highlights:-18,shadows:-10,saturation:8,vibrance:12,temperature:-5,tint:0,fade:0,grain:6,vignette:12,filter:'Night Flash'},
-'復古暖色':{exposure:3,contrast:-4,highlights:-12,shadows:12,saturation:-12,vibrance:5,temperature:18,tint:3,fade:16,grain:16,vignette:10,filter:'Retro'},
-'黑白底片':{exposure:0,contrast:15,highlights:-15,shadows:8,saturation:-100,vibrance:0,temperature:0,tint:0,fade:3,grain:20,vignette:12,filter:'B&W'}};
-cameraPanel.innerHTML='<div class="camera-grid">'+Object.keys(cameras).map(n=>`<button class="camera-card" data-camera="${n}"><div class="camera-icon">📷</div><strong>${n}</strong><small>一鍵套用完整色彩</small></button>`).join('')+'</div>';
-cameraPanel.querySelectorAll('.camera-card').forEach(b=>b.onclick=()=>applyCamera(b.dataset.camera));
-function applyCamera(name){const p=cameras[name];controls.forEach(([id])=>{if(p[id]!==undefined){values[id]=p[id];const r=adjustPanel.querySelector('[data-id="'+id+'"]');if(r)r.value=p[id];document.getElementById('v-'+id).textContent=p[id]}});activeFilter=p.filter;filterPanel.querySelectorAll('.filter').forEach(x=>x.classList.toggle('active',x.dataset.filter===activeFilter));render();document.querySelectorAll('.tab').forEach(x=>x.classList.toggle('active',x.dataset.tab==='camera'))}
-effectPanel.innerHTML='<div class="effect-grid"><button data-e="grain">顆粒</button><button data-e="vignette">暗角</button><button data-e="warm">漏光暖調</button></div>';
-effectPanel.querySelectorAll('button').forEach(b=>b.onclick=()=>{const k=b.dataset.e;effects[k]=effects[k]?0:50;b.classList.toggle('active');if(k==='grain')values.grain=effects[k];if(k==='vignette')values.vignette=effects[k];render()});
-document.querySelectorAll('.tab').forEach(t=>t.onclick=()=>{document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));t.classList.add('active');['adjust','filter','camera','effect'].forEach(x=>document.getElementById(x+'Panel').classList.toggle('hidden',t.dataset.tab!==x))});
-file.onchange=e=>{const f=e.target.files[0];if(!f)return;sourceName=f.name.replace(/\.[^.]+$/,'');const u=URL.createObjectURL(f);img.onload=()=>{const scale=Math.min(1,1800/Math.max(img.naturalWidth,img.naturalHeight));canvas.width=Math.round(img.naturalWidth*scale);canvas.height=Math.round(img.naturalHeight*scale);original=img;empty.hidden=true;canvas.hidden=false;editor.hidden=false;stageTools.hidden=false;render()};img.src=u};
-document.getElementById('change').onclick=()=>file.click();document.getElementById('resetTop').onclick=reset;
-document.getElementById('download').onclick=()=>{render();const a=document.createElement('a');a.download=sourceName+'_marsedit.jpg';a.href=canvas.toDataURL('image/jpeg',.94);a.click()};
-const before=document.getElementById('beforeBtn');before.onpointerdown=()=>{if(!original)return;ctx.drawImage(original,0,0,canvas.width,canvas.height)};before.onpointerup=render;before.onpointerleave=render;
-function reset(){controls.forEach(([id,,min,max,val])=>{values[id]=val;const r=adjustPanel.querySelector('[data-id="'+id+'"]');if(r)r.value=val;const v=document.getElementById('v-'+id);if(v)v.textContent=val});activeFilter='Original';filterPanel.querySelectorAll('.filter').forEach(x=>x.classList.toggle('active',x.dataset.filter==='Original'));effects={grain:0,vignette:0,warm:0};effectPanel.querySelectorAll('button').forEach(x=>x.classList.remove('active'));if(original)render()}
-function clamp(v){return Math.max(0,Math.min(255,v))}
-function render(){if(!original)return;ctx.drawImage(original,0,0,canvas.width,canvas.height);let d=ctx.getImageData(0,0,canvas.width,canvas.height),p=d.data;const ex=Math.pow(2,values.exposure/100),co=(values.contrast+100)/100,sat=(values.saturation+100)/100,temp=values.temperature*.55,tint=values.tint*.25;
-for(let i=0;i<p.length;i+=4){let r=p[i]*ex,g=p[i+1]*ex,b=p[i+2]*ex,lum=.2126*r+.7152*g+.0722*b,sh=values.shadows/100,hi=values.highlights/100;r+=sh*(255-lum)*.35-hi*Math.max(0,lum-128)*.3;g+=sh*(255-lum)*.35-hi*Math.max(0,lum-128)*.3;b+=sh*(255-lum)*.35-hi*Math.max(0,lum-128)*.3;r+=values.whites*.25-values.blacks*.18;g+=values.whites*.25-values.blacks*.18;b+=values.whites*.25-values.blacks*.18;r=(r-128)*co+128;g=(g-128)*co+128;b=(b-128)*co+128;const l=.2126*r+.7152*g+.0722*b;r=l+(r-l)*sat;g=l+(g-l)*sat;b=l+(b-l)*sat;const maxc=Math.max(r,g,b),minc=Math.min(r,g,b),v=maxc-minc,vib=1+values.vibrance/150*(1-v/255);r=l+(r-l)*vib;g=l+(g-l)*vib;b=l+(b-l)*vib;r+=temp+tint;b-=temp-tint;const fade=values.fade*.45;r=r*(1-fade/255)+fade;g=g*(1-fade/255)+fade;b=b*(1-fade/255)+fade;p[i]=clamp(r);p[i+1]=clamp(g);p[i+2]=clamp(b)}ctx.putImageData(d,0,0);applyFilter();applyEffects()}
-function applyFilter(){const f=Object.fromEntries(filters)[activeFilter];if(!f||f==='none')return;const temp=document.createElement('canvas');temp.width=canvas.width;temp.height=canvas.height;const tc=temp.getContext('2d');tc.filter=f;tc.drawImage(canvas,0,0);ctx.clearRect(0,0,canvas.width,canvas.height);ctx.drawImage(temp,0,0)}
-function applyEffects(){if(values.grain){const d=ctx.getImageData(0,0,canvas.width,canvas.height),p=d.data,n=values.grain*.55;for(let i=0;i<p.length;i+=4){const q=(Math.random()-.5)*n;p[i]=clamp(p[i]+q);p[i+1]=clamp(p[i+1]+q);p[i+2]=clamp(p[i+2]+q)}ctx.putImageData(d,0,0)}if(values.vignette){const g=ctx.createRadialGradient(canvas.width/2,canvas.height/2,Math.min(canvas.width,canvas.height)*.2,canvas.width/2,canvas.height/2,Math.max(canvas.width,canvas.height)*.72);g.addColorStop(0,'rgba(0,0,0,0)');g.addColorStop(1,`rgba(25,12,8,${values.vignette/100*.55})`);ctx.fillStyle=g;ctx.fillRect(0,0,canvas.width,canvas.height)}}
+ '35mm 底片':{
+  icon:'🎞️',desc:'柔和高光・底片顆粒・暖色',
+  base:{exposure:-3,contrast:5,highlights:-18,shadows:13,saturation:-8,vibrance:12,temperature:7,tint:2,fade:6,grain:23,vignette:9,sharpness:4},
+  filter:'Soft Film'
+ },
+ 'CCD 數位相機':{
+  icon:'📷',desc:'高飽和・清晰・冷色數位感',
+  base:{exposure:4,contrast:17,highlights:-10,shadows:-8,saturation:24,vibrance:18,temperature:-4,tint:0,fade:0,grain:5,vignette:3,sharpness:24},
+  filter:'CCD'
+ },
+ '2000s 老 DC':{
+  icon:'💿',desc:'閃光感・偏綠・老數位噪點',
+  base:{exposure:3,contrast:16,highlights:-8,shadows:-5,saturation:5,vibrance:5,temperature:1,tint:-4,fade:2,grain:12,vignette:5,sharpness:16},
+  filter:'2000s DC'
+ },
+ '拍立得':{
+  icon:'🖼️',desc:'奶油白・低對比・柔霧褪色',
+  base:{exposure:8,contrast:-13,highlights:-26,shadows:22,saturation:-12,vibrance:2,temperature:12,tint:3,fade:15,grain:12,vignette:1,sharpness:0},
+  filter:'Polaroid'
+ },
+ '日系底片':{
+  icon:'🌿',desc:'亮陰影・低飽和・乾淨柔和',
+  base:{exposure:6,contrast:-10,highlights:-22,shadows:24,saturation:-12,vibrance:15,temperature:4,tint:2,fade:8,grain:15,vignette:2,sharpness:3},
+  filter:'Soft Film'
+ },
+ '夜間閃光燈':{
+  icon:'⚡',desc:'人物亮、背景暗、強烈閃光',
+  base:{exposure:-7,contrast:28,highlights:-27,shadows:-30,saturation:15,vibrance:17,temperature:-9,tint:-1,fade:0,grain:7,vignette:15,sharpness:25},
+  filter:'Night Flash'
+ },
+ '復古暖色':{
+  icon:'🧸',desc:'橘黃色・褪色・重顆粒',
+  base:{exposure:3,contrast:-8,highlights:-20,shadows:17,saturation:-16,vibrance:6,temperature:23,tint:4,fade:20,grain:24,vignette:12,sharpness:0},
+  filter:'Retro'
+ },
+ '黑白底片':{
+  icon:'🖤',desc:'銀鹽黑白・高反差・底片顆粒',
+  base:{exposure:0,contrast:22,highlights:-22,shadows:12,saturation:-100,vibrance:0,temperature:0,tint:0,fade:4,grain:27,vignette:14,sharpness:12},
+  filter:'B&W'
+ }
+};
+
+cameraPanel.innerHTML='<div class="camera-grid">'+
+ Object.keys(cameras).map(n=>{
+  const c=cameras[n];
+  return `
+  <button class="camera-card" data-camera="${n}">
+   <div class="camera-icon">${c.icon}</div>
+   <strong>${n}</strong>
+   <small>${c.desc}</small>
+  </button>`;
+ }).join('')+
+ '</div>';
+
+cameraPanel.querySelectorAll('.camera-card').forEach(b=>{
+ b.onclick=()=>applyCamera(b.dataset.camera);
+});
+
+function applyCamera(name){
+ const camera=cameras[name];
+ activeCamera=name;
+ activeFilter=camera.filter;
+
+ controls.forEach(([id])=>{
+  if(camera.base[id]===undefined)return;
+  values[id]=camera.base[id];
+  const r=adjustPanel.querySelector('[data-id="'+id+'"]');
+  const v=document.getElementById('v-'+id);
+  if(r)r.value=camera.base[id];
+  if(v)v.textContent=camera.base[id];
+ });
+
+ filterPanel.querySelectorAll('.filter').forEach(x=>{
+  x.classList.toggle('active',x.dataset.filter===activeFilter);
+ });
+
+ render();
+
+ cameraPanel.querySelectorAll('.camera-card').forEach(x=>{
+  x.style.borderColor=x.dataset.camera===name?'var(--accent)':'';
+  x.style.background=x.dataset.camera===name?'var(--accent-soft)':'';
+ });
+}
+
+effectPanel.innerHTML='<div class="effect-grid">'+
+ '<button data-e="grain">顆粒</button>'+
+ '<button data-e="vignette">暗角</button>'+
+ '<button data-e="warm">漏光暖調</button>'+
+ '</div>';
+
+effectPanel.querySelectorAll('button').forEach(b=>{
+ b.onclick=()=>{
+  const k=b.dataset.e;
+  effects[k]=effects[k]?0:50;
+  b.classList.toggle('active');
+  if(k==='grain')values.grain=effects[k];
+  if(k==='vignette')values.vignette=effects[k];
+  render();
+ };
+});
+
+document.querySelectorAll('.tab').forEach(t=>{
+ t.onclick=()=>{
+  document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));
+  t.classList.add('active');
+  ['adjust','filter','camera','effect'].forEach(x=>{
+   document.getElementById(x+'Panel').classList.toggle('hidden',t.dataset.tab!==x);
+  });
+ };
+});
+
+file.onchange=e=>{
+ const f=e.target.files[0];
+ if(!f)return;
+ sourceName=f.name.replace(/\.[^.]+$/,'');
+ const u=URL.createObjectURL(f);
+ img.onload=()=>{
+  const scale=Math.min(1,1800/Math.max(img.naturalWidth,img.naturalHeight));
+  canvas.width=Math.round(img.naturalWidth*scale);
+  canvas.height=Math.round(img.naturalHeight*scale);
+  original=img;
+  empty.hidden=true;
+  canvas.hidden=false;
+  editor.hidden=false;
+  stageTools.hidden=false;
+  activeCamera=null;
+  render();
+  URL.revokeObjectURL(u);
+ };
+ img.src=u;
+};
+
+document.getElementById('change').onclick=()=>file.click();
+document.getElementById('resetTop').onclick=reset;
+
+document.getElementById('download').onclick=()=>{
+ render();
+ const a=document.createElement('a');
+ a.download=sourceName+'_marsedit.jpg';
+ a.href=canvas.toDataURL('image/jpeg',.94);
+ a.click();
+};
+
+const before=document.getElementById('beforeBtn');
+
+before.onpointerdown=()=>{
+ if(!original)return;
+ ctx.drawImage(original,0,0,canvas.width,canvas.height);
+};
+
+before.onpointerup=render;
+before.onpointercancel=render;
+before.onpointerleave=render;
+
+function reset(){
+ controls.forEach(([id,,min,max,val])=>{
+  values[id]=val;
+  const r=adjustPanel.querySelector('[data-id="'+id+'"]');
+  const v=document.getElementById('v-'+id);
+  if(r)r.value=val;
+  if(v)v.textContent=val;
+ });
+ activeFilter='Original';
+ activeCamera=null;
+ effects={grain:0,vignette:0,warm:0};
+ filterPanel.querySelectorAll('.filter').forEach(x=>x.classList.toggle('active',x.dataset.filter==='Original'));
+ cameraPanel.querySelectorAll('.camera-card').forEach(x=>{
+  x.style.borderColor='';
+  x.style.background='';
+ });
+ effectPanel.querySelectorAll('button').forEach(x=>x.classList.remove('active'));
+ if(original)render();
+}
+
+function clamp(v){
+ return Math.max(0,Math.min(255,v));
+}
+
+function lerp(a,b,t){
+ return a+(b-a)*t;
+}
+
+function smoothstep(a,b,x){
+ const t=Math.max(0,Math.min(1,(x-a)/(b-a)));
+ return t*t*(3-2*t);
+}
+
+function rgbToHsl(r,g,b){
+ r/=255;g/=255;b/=255;
+ const max=Math.max(r,g,b),min=Math.min(r,g,b);
+ let h=0,s=0;
+ const l=(max+min)/2;
+ if(max!==min){
+  const d=max-min;
+  s=l>0.5?d/(2-max-min):d/(max+min);
+  switch(max){
+   case r:h=(g-b)/d+(g<b?6:0);break;
+   case g:h=(b-r)/d+2;break;
+   case b:h=(r-g)/d+4;break;
+  }
+  h/=6;
+ }
+ return [h,s,l];
+}
+
+function hue2rgb(p,q,t){
+ if(t<0)t+=1;
+ if(t>1)t-=1;
+ if(t<1/6)return p+(q-p)*6*t;
+ if(t<1/2)return q;
+ if(t<2/3)return p+(q-p)*(2/3-t)*6;
+ return p;
+}
+
+function hslToRgb(h,s,l){
+ if(s===0)return [l*255,l*255,l*255];
+ const q=l<0.5?l*(1+s):l+s-l*s;
+ const p=2*l-q;
+ return [
+  hue2rgb(p,q,h+1/3)*255,
+  hue2rgb(p,q,h)*255,
+  hue2rgb(p,q,h-1/3)*255
+ ];
+}
+
+function applyColorProfile(r,g,b,f){
+ if(!f)return [r,g,b];
+
+ if(f.mono){
+  const y=.2126*r+.7152*g+.0722*b;
+  r=g=b=y;
+ }
+
+ const exposure=f.exposure||0;
+ if(exposure){
+  const e=Math.pow(2,exposure/100);
+  r*=e;g*=e;b*=e;
+ }
+
+ const contrast=f.contrast||0;
+ if(contrast){
+  const c=(contrast+100)/100;
+  r=(r-128)*c+128;
+  g=(g-128)*c+128;
+  b=(b-128)*c+128;
+ }
+
+ const sat=(f.saturation||0)/100;
+ if(sat){
+  const y=.2126*r+.7152*g+.0722*b;
+  const s=1+sat;
+  r=y+(r-y)*s;
+  g=y+(g-y)*s;
+  b=y+(b-y)*s;
+ }
+
+ if(f.vibrance){
+  const mx=Math.max(r,g,b),mn=Math.min(r,g,b),range=mx-mn;
+  const y=.2126*r+.7152*g+.0722*b;
+  const amount=(f.vibrance/100)*(1-range/255);
+  r=y+(r-y)*(1+amount);
+  g=y+(g-y)*(1+amount);
+  b=y+(b-y)*(1+amount);
+ }
+
+ if(f.highlights){
+  const t=smoothstep(100,255,(r+g+b)/3);
+  const k=(f.highlights/100)*t;
+  r+=k*(128-r);
+  g+=k*(128-g);
+  b+=k*(128-b);
+ }
+
+ if(f.shadows){
+  const t=1-smoothstep(0,150,(r+g+b)/3);
+  const k=(f.shadows/100)*t;
+  r+=k*(255-r)*.45;
+  g+=k*(255-g)*.45;
+  b+=k*(255-b)*.45;
+ }
+
+ if(f.matte){
+  const m=f.matte/100;
+  r=lerp(r,Math.max(r,18),m*.22);
+  g=lerp(g,Math.max(g,18),m*.22);
+  b=lerp(b,Math.max(b,18),m*.22);
+ }
+
+ if(f.temperature){
+  const t=f.temperature;
+  r+=t*.55;
+  g+=t*.08;
+  b-=t*.55;
+ }
+
+ if(f.r)r+=f.r;
+ if(f.g)g+=f.g;
+ if(f.b)b+=f.b;
+ if(f.green)g+=f.green;
+
+ if(f.fade){
+  const fde=f.fade/100;
+  r=lerp(r,238,fde*.32);
+  g=lerp(g,232,fde*.32);
+  b=lerp(b,225,fde*.32);
+ }
+
+ if(f.mono){
+  const y=.2126*r+.7152*g+.0722*b;
+  r=g=b=y;
+ }
+
+ return [r,g,b];
+}
+
+function render(){
+ if(!original)return;
+
+ ctx.drawImage(original,0,0,canvas.width,canvas.height);
+
+ let d=ctx.getImageData(0,0,canvas.width,canvas.height);
+ const p=d.data;
+ const f=filters[activeFilter]||{};
+
+ const ex=Math.pow(2,values.exposure/100);
+ const co=(values.contrast+100)/100;
+ const sat=(values.saturation+100)/100;
+ const temp=values.temperature*.55;
+ const tint=values.tint*.3;
+ const sh=values.shadows/100;
+ const hi=values.highlights/100;
+ const whites=values.whites/100;
+ const blacks=values.blacks/100;
+ const vib=values.vibrance/100;
+ const fade=values.fade/100;
+
+ for(let i=0;i<p.length;i+=4){
+  let r=p[i]*ex;
+  let g=p[i+1]*ex;
+  let b=p[i+2]*ex;
+
+  let lum=.2126*r+.7152*g+.0722*b;
+
+  if(sh){
+   const amount=sh*(1-lum/255);
+   r+=amount*(255-r)*.42;
+   g+=amount*(255-g)*.42;
+   b+=amount*(255-b)*.42;
+  }
+
+  if(hi){
+   const amount=hi*Math.max(0,(lum-90)/165);
+   r+=amount*(128-r)*.32;
+   g+=amount*(128-g)*.32;
+   b+=amount*(128-b)*.32;
+  }
+
+  if(whites){
+   const amount=whites*Math.max(0,(lum-150)/105);
+   r+=amount*45;
+   g+=amount*45;
+   b+=amount*45;
+  }
+
+  if(blacks){
+   const amount=blacks*Math.max(0,(90-lum)/90);
+   r-=amount*38;
+   g-=amount*38;
+   b-=amount*38;
+  }
+
+  r=(r-128)*co+128;
+  g=(g-128)*co+128;
+  b=(b-128)*co+128;
+
+  lum=.2126*r+.7152*g+.0722*b;
+  r=lum+(r-lum)*sat;
+  g=lum+(g-lum)*sat;
+  b=lum+(b-lum)*sat;
+
+  if(vib){
+   const range=Math.max(r,g,b)-Math.min(r,g,b);
+   const amount=vib*(1-range/255);
+   r=lum+(r-lum)*(1+amount);
+   g=lum+(g-lum)*(1+amount);
+   b=lum+(b-lum)*(1+amount);
+  }
+
+  r+=temp+tint;
+  b-=temp-tint;
+
+  if(fade){
+   r=lerp(r,242,fade*.22);
+   g=lerp(g,235,fade*.22);
+   b=lerp(b,228,fade*.22);
+  }
+
+  [r,g,b]=applyColorProfile(r,g,b,f);
+
+  p[i]=clamp(r);
+  p[i+1]=clamp(g);
+  p[i+2]=clamp(b);
+ }
+
+ ctx.putImageData(d,0,0);
+
+ if(values.sharpness){
+  applySharpness(values.sharpness);
+ }
+
+ applyEffects();
+}
+
+function applySharpness(amount){
+ if(amount<1)return;
+
+ const w=canvas.width,h=canvas.height;
+ const src=ctx.getImageData(0,0,w,h);
+ const s=src.data;
+ const out=new ImageData(w,h);
+ const o=out.data;
+ const strength=amount/100*.55;
+
+ for(let y=1;y<h-1;y++){
+  for(let x=1;x<w-1;x++){
+   const i=(y*w+x)*4;
+   for(let c=0;c<3;c++){
+    const center=s[i+c];
+    const blur=(
+     s[i-4+c]+s[i+4+c]+
+     s[i-w*4+c]+s[i+w*4+c]
+    )/4;
+    o[i+c]=clamp(center+(center-blur)*strength);
+   }
+   o[i+3]=255;
+  }
+ }
+
+ ctx.putImageData(out,0,0);
+}
+
+function applyEffects(){
+ const w=canvas.width,h=canvas.height;
+
+ if(values.grain){
+  const d=ctx.getImageData(0,0,w,h);
+  const p=d.data;
+  const amount=values.grain*.58;
+
+  for(let i=0;i<p.length;i+=4){
+   const q=(Math.random()-.5)*amount;
+   p[i]=clamp(p[i]+q);
+   p[i+1]=clamp(p[i+1]+q);
+   p[i+2]=clamp(p[i+2]+q);
+  }
+
+  ctx.putImageData(d,0,0);
+ }
+
+ if(values.vignette){
+  const g=ctx.createRadialGradient(
+   w/2,h/2,Math.min(w,h)*.16,
+   w/2,h/2,Math.max(w,h)*.76
+  );
+  g.addColorStop(0,'rgba(0,0,0,0)');
+  g.addColorStop(.55,'rgba(20,10,5,0)');
+  g.addColorStop(1,`rgba(20,10,5,${values.vignette/100*.58})`);
+  ctx.fillStyle=g;
+  ctx.fillRect(0,0,w,h);
+ }
+
+ if(effects.warm){
+  const g=ctx.createLinearGradient(0,h, w*.7,0);
+  g.addColorStop(0,'rgba(255,120,55,.24)');
+  g.addColorStop(.38,'rgba(255,190,90,.08)');
+  g.addColorStop(.7,'rgba(255,255,255,0)');
+  g.addColorStop(1,'rgba(255,255,255,0)');
+  ctx.fillStyle=g;
+  ctx.fillRect(0,0,w,h);
+ }
+}
+
+// 顯示目前濾鏡名稱的簡短提示，不影響原本版面。
+filterPanel.querySelectorAll('.filter').forEach(b=>{
+ const n=b.dataset.filter;
+ const small=b.querySelector('small');
+ if(small)small.title=filterDescriptions[n]||'';
+});
