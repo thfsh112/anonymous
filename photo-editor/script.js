@@ -116,6 +116,11 @@ const filters={
   highlights:-17,shadows:8,fade:3,
   mono:1,sharp:5
  },
+ 'Dazz 風':{
+  exposure:0,contrast:18,saturation:-8,vibrance:10,
+  temperature:-18,highlights:-24,shadows:-12,fade:3,
+  r:-8,g:2,b:14,sharp:2
+ },
  'Faded':{
   exposure:5,contrast:-18,saturation:-25,vibrance:-2,
   temperature:4,highlights:-20,shadows:20,fade:24,
@@ -135,6 +140,7 @@ const filterDescriptions={
  'Night Flash':'強閃光、高反差',
  'Retro':'復古橘黃、褪色',
  'B&W':'黑白銀鹽感',
+ 'Dazz 風':'冷青綠、深黑、閃光感、細顆粒',
  'Faded':'低飽和、霧面褪色'
 };
 
@@ -560,6 +566,13 @@ function render(){
    [r,g,b]=applyCameraSignature(r,g,b,x,y,canvas.width,canvas.height);
   }
 
+  if(activeFilter==='Dazz 風'){
+   const x=(i/4)%canvas.width;
+   const y=Math.floor((i/4)/canvas.width);
+   [r,g,b]=applyDazzLook(r,g,b,x,y,canvas.width,canvas.height);
+  }
+
+
   p[i]=clamp(r);
   p[i+1]=clamp(g);
   p[i+2]=clamp(b);
@@ -635,6 +648,19 @@ function applyCameraSignature(r,g,b,x,y,w,h){
   r=g=b=yv;
  }
 
+ return [r,g,b];
+}
+
+
+// Dazz 風：依照參考圖的冷青藍陰影、偏青高光、深黑、細顆粒與輕微閃光暈染。
+function applyDazzLook(r,g,b,x,y,w,h){
+ const lum=.2126*r+.7152*g+.0722*b;
+ const shadow=1-smoothstep(55,175,lum);
+ const highlight=smoothstep(145,245,lum);
+ r += -7*shadow - 3*highlight;
+ g +=  2*shadow + 1*highlight;
+ b += 13*shadow + 8*highlight;
+ if(lum<70){ r-=3; g-=2; b+=2; }
  return [r,g,b];
 }
 
