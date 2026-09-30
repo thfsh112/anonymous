@@ -117,9 +117,9 @@ const filters={
   mono:1,sharp:5
  },
  'Dazz 風':{
-  exposure:0,contrast:18,saturation:-8,vibrance:10,
-  temperature:-18,highlights:-24,shadows:-12,fade:3,
-  r:-8,g:2,b:14,sharp:2
+  exposure:-1,contrast:24,saturation:-12,vibrance:16,
+  temperature:-24,highlights:-30,shadows:-18,fade:1,
+  r:-10,g:3,b:20,sharp:5
  },
  'Faded':{
   exposure:5,contrast:-18,saturation:-25,vibrance:-2,
@@ -140,7 +140,7 @@ const filterDescriptions={
  'Night Flash':'強閃光、高反差',
  'Retro':'復古橘黃、褪色',
  'B&W':'黑白銀鹽感',
- 'Dazz 風':'冷青綠、深黑、閃光感、細顆粒',
+ 'Dazz 風':'冷青綠、深黑、青藍高光、CCD 顆粒',
  'Faded':'低飽和、霧面褪色'
 };
 
@@ -590,69 +590,102 @@ function render(){
 function applyCameraSignature(r,g,b,x,y,w,h){
  const name=activeCamera;
  const lum=.2126*r+.7152*g+.0722*b;
+ const shadow=1-smoothstep(45,170,lum);
+ const highlight=smoothstep(150,245,lum);
+ const nx=(x/w)-.5, ny=(y/h)-.5;
+ const edge=Math.min(1,Math.sqrt(nx*nx+ny*ny)*1.55);
 
  if(name==='35mm 底片'){
-  const warm=Math.max(0,(lum-125)/130);
-  r+=warm*8; g+=warm*2; b-=warm*6;
-  const shadow=1-Math.min(1,lum/150);
-  r+=shadow*2; g+=shadow*3; b+=shadow*1;
+  // 35mm: warm highlights, lifted blacks, gentle green/cyan shadow separation.
+  r += 7*highlight + 2*shadow;
+  g += 2*highlight + 3*shadow;
+  b -= 5*highlight - 1*shadow;
+  const grain=(Math.random()-.5)*5;
+  r+=grain;g+=grain*.85;b+=grain*.75;
+  r+=edge*1.5;g+=edge*1.2;b+=edge*.8;
  }
 
  if(name==='CCD 數位相機'){
-  const n=(Math.random()-.5)*7;
-  r+=n*1.15; g+=n*.8; b+=n*1.25;
-  if(lum>205){r+=5;g+=3;b+=1}
+  // Early CCD: punchy colour, cyan/blue shadows, clipped whites, chromatic sensor noise.
+  r += -4*shadow + 5*highlight;
+  g += 2*shadow + 2*highlight;
+  b += 10*shadow + 0*highlight;
+  const n=(Math.random()-.5)*11;
+  r+=n*1.25; g+=n*.9; b+=n*1.35;
+  if(lum>215){r+=14;g+=10;b+=8;}
+  r=Math.round(r/2)*2;g=Math.round(g/2)*2;b=Math.round(b/2)*2;
  }
 
  if(name==='2000s 老 DC'){
-  const n=(Math.random()-.5)*13;
-  r+=n*1.15; g+=n*.9; b+=n*1.25;
-  r=Math.round(r/3)*3;
-  g=Math.round(g/3)*3;
-  b=Math.round(b/3)*3;
-  if(lum>190){r=Math.min(255,r+18);g=Math.min(255,g+12);b=Math.min(255,b+8)}
+  // Y2K compact: hard flash center, crushed background, JPEG-ish steps and blue shadows.
+  const dx=(x-w*.5)/(w*.5), dy=(y-h*.45)/(h*.55);
+  const dist=Math.sqrt(dx*dx+dy*dy);
+  const flash=Math.max(0,1-dist);
+  r += flash*30 - edge*16;
+  g += flash*25 - edge*13;
+  b += flash*20 - edge*8;
+  r += -6*shadow + 7*highlight;
+  g +=  1*shadow + 4*highlight;
+  b += 12*shadow + 1*highlight;
+  const n=(Math.random()-.5)*15;
+  r+=n*1.2;g+=n*.9;b+=n*1.3;
+  r=Math.round(r/4)*4;g=Math.round(g/4)*4;b=Math.round(b/4)*4;
  }
 
  if(name==='拍立得'){
-  r=lerp(r,Math.max(r,32),.16);
-  g=lerp(g,Math.max(g,29),.16);
-  b=lerp(b,Math.max(b,25),.16);
-  r+=5;g+=2;b-=3;
+  // Instant: milky blacks, pastel colour, warm paper-like cast.
+  const paper=Math.min(1,.28+highlight*.42);
+  r=lerp(r,Math.max(r,42),.24);
+  g=lerp(g,Math.max(g,39),.24);
+  b=lerp(b,Math.max(b,36),.24);
+  r+=8*paper;g+=4*paper;b-=2*paper;
+  const soft=(Math.random()-.5)*2;
+  r+=soft;g+=soft;b+=soft;
  }
 
  if(name==='日系底片'){
-  const shadow=1-Math.min(1,lum/170);
-  g+=shadow*5;b+=shadow*4;
-  r-=shadow*2;
+  // Japanese film: airy exposure, cyan-green shadows, creamy highlights.
+  r += -5*shadow + 3*highlight;
+  g +=  7*shadow + 2*highlight;
+  b +=  9*shadow + 4*highlight;
+  r-=edge*1.2;g-=edge*.7;b-=edge*.2;
  }
 
  if(name==='夜間閃光燈'){
-  const dx=(x-w/2)/(w/2);
-  const dy=(y-h/2)/(h/2);
+  // Night flash: strong central flash falloff + cool dark background + highlight bloom.
+  const dx=(x-w/2)/(w/2), dy=(y-h*.43)/(h*.57);
   const dist=Math.sqrt(dx*dx+dy*dy);
   const flash=Math.max(0,1-dist);
-  const edge=Math.max(0,dist-.45);
-  r+=flash*25-edge*35;
-  g+=flash*24-edge*32;
-  b+=flash*20-edge*27;
-  if(lum>210){r+=10;g+=8;b+=5}
+  const fall=Math.max(0,dist-.35);
+  r += flash*42-fall*46;
+  g += flash*38-fall*39;
+  b += flash*30-fall*29;
+  r += -8*shadow + 10*highlight;
+  g += -5*shadow + 8*highlight;
+  b += 13*shadow + 5*highlight;
+  if(lum>205){r+=15;g+=12;b+=9;}
  }
 
  if(name==='復古暖色'){
-  r+=10;g+=3;b-=9;
-  if(lum>150){r+=5;g+=2;b-=3}
+  // Warm vintage: amber mids, faded blacks, heavier analogue texture.
+  r += 16 + 7*highlight;
+  g +=  6 + 3*highlight;
+  b -= 12 + 5*highlight;
+  const grain=(Math.random()-.5)*18;
+  r+=grain;g+=grain*.8;b+=grain*.65;
+  r=lerp(r,Math.max(r,30),.08);g=lerp(g,Math.max(g,27),.08);b=lerp(b,Math.max(b,24),.08);
  }
 
  if(name==='黑白底片'){
+  // Silver-gelatin style: strong luminance contrast + coarse grain.
   const yv=.2126*r+.7152*g+.0722*b;
-  r=g=b=yv;
+  const c=(yv-128)*1.18+128;
+  const grain=(Math.random()-.5)*20;
+  r=g=b=c+grain;
  }
 
  return [r,g,b];
 }
-
-
-// Dazz 風：依照參考圖的冷青藍陰影、偏青高光、深黑、細顆粒與輕微閃光暈染。
 function applyDazzLook(r,g,b,x,y,w,h){
  const lum=.2126*r+.7152*g+.0722*b;
  const shadow=1-smoothstep(55,175,lum);
@@ -733,7 +766,15 @@ function applyEffects(){
   ctx.fillRect(0,0,w,h);
  }
 
- applyCameraOverlay();
+ if(activeFilter==='Dazz 風'){
+  const glow=ctx.createRadialGradient(w*.5,h*.42,Math.min(w,h)*.06,w*.5,h*.42,Math.max(w,h)*.72);
+  glow.addColorStop(0,'rgba(170,235,255,.09)');
+  glow.addColorStop(.45,'rgba(60,170,205,.035)');
+  glow.addColorStop(1,'rgba(0,30,45,0)');
+  ctx.fillStyle=glow;
+  ctx.fillRect(0,0,w,h);
+}
+applyCameraOverlay();
 }
 
 // 顯示目前濾鏡名稱的簡短提示，不影響原本版面。
