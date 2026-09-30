@@ -1,4 +1,40 @@
 const canvas=document.getElementById('canvas');
+
+const CLOUD_API='https://roynzxilxumfzzuezelg.supabase.co/functions/v1/photo-editor-api';
+const CLOUD_TOKEN_KEY='marsedit_owner_token_v1';
+function getCloudToken(){
+ let token=localStorage.getItem(CLOUD_TOKEN_KEY);
+ if(!token){const bytes=new Uint8Array(32);crypto.getRandomValues(bytes);token=Array.from(bytes).map(x=>x.toString(16).padStart(2,'0')).join('');localStorage.setItem(CLOUD_TOKEN_KEY,token);}
+ return token;
+}
+function cloudStatus(text){const el=document.getElementById('cloudStatus');if(el)el.textContent=text;}
+async function uploadToCloud(){
+ if(!original)return;
+ cloudStatus('正在上傳到 Supabase…');
+ const blob=await new Promise(resolve=>canvas.toBlob(resolve,'image/jpeg',.94));
+ if(!blob){cloudStatus('無法建立照片檔案');return;}
+ const form=new FormData();form.append('owner_token',getCloudToken());form.append('file',blob,sourceName+'_marsedit.jpg');form.append('original_name',sourceName);
+ const res=await fetch(CLOUD_API,{method:'POST',body:form});const data=await res.json().catch(()=>({}));
+ if(!res.ok||!data.ok)throw new Error(data.error||'cloud_upload_failed');
+ cloudStatus('已同步到 Supabase ✓');return data.photo;
+}
+async function loadCloudPhotos(){
+ const panel=document.getElementById('cloudPanel');if(panel)panel.hidden=false;cloudStatus('正在讀取雲端照片…');
+ const res=await fetch(CLOUD_API,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'list',owner_token:getCloudToken()})});
+ const data=await res.json().catch(()=>({}));if(!res.ok||!data.ok)throw new Error(data.error||'cloud_list_failed');
+ const gallery=document.getElementById('cloudGallery');if(!gallery)return;
+ if(!data.photos.length){gallery.innerHTML='<div class="cloud-empty">還沒有儲存到雲端的照片</div>';cloudStatus('0 張照片');return;}
+ gallery.innerHTML=data.photos.map(p=>'<button class="cloud-photo" data-url="'+p.image_url.replace(/"/g,'&quot;')+'"><img src="'+p.image_url+'" loading="lazy"><span>'+(p.original_name||'photo')+'</span><small>'+([p.camera,p.focal_length,p.aperture,p.iso].filter(Boolean).join(' · ')||'MARSEDIT')+'</small></button>').join('');
+ gallery.querySelectorAll('.cloud-photo').forEach(b=>b.onclick=()=>loadCloudImage(b.dataset.url));
+ cloudStatus(data.photos.length+' 張照片');
+}
+function loadCloudImage(url){
+ const next=new Image();next.crossOrigin='anonymous';next.onload=()=>{const scale=Math.min(1,1800/Math.max(next.naturalWidth,next.naturalHeight));canvas.width=Math.round(next.naturalWidth*scale);canvas.height=Math.round(next.naturalHeight*scale);original=next;empty.hidden=true;canvas.hidden=false;editor.hidden=false;stageTools.hidden=false;activeCamera=null;activeFilter='Original';render();};next.onerror=()=>cloudStatus('照片載入失敗');next.src=url;
+}
+document.getElementById('cloud').onclick=async()=>{try{await loadCloudPhotos();}catch(e){cloudStatus('雲端讀取失敗：'+e.message);}};
+document.getElementById('cloudRefresh').onclick=async()=>{try{await loadCloudPhotos();}catch(e){cloudStatus('雲端讀取失敗：'+e.message);}};
+
+
 const ctx=canvas.getContext('2d',{willReadFrequently:true});
 const file=document.getElementById('file');
 const empty=document.getElementById('empty');
@@ -296,12 +332,13 @@ file.onchange=e=>{
 document.getElementById('change').onclick=()=>file.click();
 document.getElementById('resetTop').onclick=reset;
 
-document.getElementById('download').onclick=()=>{
+document.getElementById('download').onclick=async()=>{
  render();
  const a=document.createElement('a');
  a.download=sourceName+'_marsedit.jpg';
  a.href=canvas.toDataURL('image/jpeg',.94);
  a.click();
+ try{await uploadToCloud();}catch(e){cloudStatus('雲端同步失敗：'+e.message);}
 };
 
 const before=document.getElementById('beforeBtn');
