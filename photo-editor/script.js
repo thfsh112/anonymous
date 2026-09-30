@@ -1,0 +1,45 @@
+const canvas=document.getElementById('canvas'),ctx=canvas.getContext('2d',{willReadFrequently:true});
+const file=document.getElementById('file'),empty=document.getElementById('empty'),editor=document.getElementById('editor');
+const stageTools=document.getElementById('stageTools'), adjustPanel=document.getElementById('adjustPanel'),filterPanel=document.getElementById('filterPanel'),effectPanel=document.getElementById('effectPanel');
+let img=new Image(), original=null, sourceName='photo', activeFilter='Original', effects={grain:0,vignette:0,warm:0};
+
+const controls=[
+['exposure','曝光',-100,100,0],['contrast','對比',-100,100,0],['highlights','高光',-100,100,0],['shadows','陰影',-100,100,0],
+['whites','白色',-100,100,0],['blacks','黑色',-100,100,0],['saturation','飽和度',-100,100,0],['vibrance','自然飽和',-100,100,0],
+['temperature','色溫',-100,100,0],['tint','色調',-100,100,0],['sharpness','銳利度',0,100,0],['fade','褪色',0,100,0],['grain','顆粒',0,100,0],['vignette','暗角',0,100,0]
+];
+const values=Object.fromEntries(controls.map(x=>[x[0],x[4]]));
+
+function makeControls(){adjustPanel.innerHTML=controls.map(([id,name,min,max,val])=>`<div class="row"><div class="rowhead"><span>${name}</span><span class="value" id="v-${id}">${val}</span></div><input type="range" min="${min}" max="${max}" value="${val}" data-id="${id}"></div>`).join('');
+adjustPanel.querySelectorAll('input').forEach(r=>r.oninput=()=>{values[r.dataset.id]=+r.value;document.getElementById('v-'+r.dataset.id).textContent=r.value;render()})}
+makeControls();
+
+const filters=[
+['Original','none'],['Soft Film','sepia(.12) saturate(.92) contrast(.96)'],['Warm Film','sepia(.22) saturate(1.08) contrast(1.02)'],['Cool Film','saturate(.9) hue-rotate(8deg) contrast(1.05)'],['CCD','saturate(1.25) contrast(1.12)'],['2000s DC','saturate(.82) contrast(1.08) sepia(.08)'],['Polaroid','sepia(.18) saturate(.86) contrast(.94)'],['Instax','brightness(1.05) saturate(.86) contrast(.92)'],['Night Flash','contrast(1.18) saturate(1.08) brightness(.96)'],['Retro','sepia(.3) saturate(.8) contrast(.9)'],['B&W','grayscale(1) contrast(1.08)'],['Faded','sepia(.08) saturate(.72) brightness(1.04)']];
+filterPanel.innerHTML='<div class="filter-grid">'+filters.map(([n,f])=>`<button class="filter ${n==='Original'?'active':''}" data-filter="${n}"><div class="thumb" style="filter:${f}"></div><small>${n}</small></button>`).join('')+'</div>';
+filterPanel.querySelectorAll('.filter').forEach(b=>b.onclick=()=>{activeFilter=b.dataset.filter;filterPanel.querySelectorAll('.filter').forEach(x=>x.classList.remove('active'));b.classList.add('active');render()});
+
+effectPanel.innerHTML='<div class="effect-grid"><button data-e="grain">顆粒</button><button data-e="vignette">暗角</button><button data-e="warm">漏光暖調</button></div>';
+effectPanel.querySelectorAll('button').forEach(b=>b.onclick=()=>{const k=b.dataset.e;effects[k]=effects[k]?0:50;b.classList.toggle('active');if(k==='grain')values.grain=effects[k];if(k==='vignette')values.vignette=effects[k];render()});
+
+document.querySelectorAll('.tab').forEach(t=>t.onclick=()=>{document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));t.classList.add('active');['adjust','filter','effect'].forEach(x=>document.getElementById(x+'Panel').classList.toggle('hidden',t.dataset.tab!==x))});
+
+file.onchange=e=>{const f=e.target.files[0];if(!f)return;sourceName=f.name.replace(/\.[^.]+$/,'');const u=URL.createObjectURL(f);img.onload=()=>{const scale=Math.min(1,1800/Math.max(img.naturalWidth,img.naturalHeight));canvas.width=Math.round(img.naturalWidth*scale);canvas.height=Math.round(img.naturalHeight*scale);original=img;empty.hidden=true;canvas.hidden=false;editor.hidden=false;stageTools.hidden=false;render()};img.src=u};
+document.getElementById('change').onclick=()=>file.click();
+document.getElementById('resetTop').onclick=reset;
+document.getElementById('download').onclick=()=>{render();const a=document.createElement('a');a.download=sourceName+'_marsedit.jpg';a.href=canvas.toDataURL('image/jpeg',.94);a.click()};
+const before=document.getElementById('beforeBtn');before.onpointerdown=()=>{if(!original)return;ctx.drawImage(original,0,0,canvas.width,canvas.height)};before.onpointerup=render;before.onpointerleave=render;
+
+function reset(){controls.forEach(([id,,min,max,val])=>{values[id]=val;const r=adjustPanel.querySelector('[data-id="'+id+'"]');if(r)r.value=val;const v=document.getElementById('v-'+id);if(v)v.textContent=val});activeFilter='Original';filterPanel.querySelectorAll('.filter').forEach(x=>x.classList.toggle('active',x.dataset.filter==='Original'));effects={grain:0,vignette:0,warm:0};effectPanel.querySelectorAll('button').forEach(x=>x.classList.remove('active'));if(original)render()}
+
+function clamp(v){return Math.max(0,Math.min(255,v))}
+function render(){if(!original)return;ctx.drawImage(original,0,0,canvas.width,canvas.height);let d=ctx.getImageData(0,0,canvas.width,canvas.height),p=d.data,w=canvas.width,h=canvas.height;
+const ex=Math.pow(2,values.exposure/100),co=(values.contrast+100)/100, sat=(values.saturation+100)/100, temp=values.temperature*0.55, tint=values.tint*0.25;
+for(let i=0;i<p.length;i+=4){let r=p[i]*ex,g=p[i+1]*ex,b=p[i+2]*ex;let lum=.2126*r+.7152*g+.0722*b;let sh=values.shadows/100, hi=values.highlights/100;r+=sh*(255-lum)*.35-hi*Math.max(0,lum-128)*.3;g+=sh*(255-lum)*.35-hi*Math.max(0,lum-128)*.3;b+=sh*(255-lum)*.35-hi*Math.max(0,lum-128)*.3;r+=values.whites*.25-bla(values.blacks)*.18;g+=values.whites*.25-bla(values.blacks)*.18;b+=values.whites*.25-bla(values.blacks)*.18;
+r=(r-128)*co+128;g=(g-128)*co+128;b=(b-128)*co+128;const l=.2126*r+.7152*g+.0722*b;r=l+(r-l)*sat;g=l+(g-l)*sat;b=l+(b-l)*sat;
+const maxc=Math.max(r,g,b),minc=Math.min(r,g,b),v=maxc-minc, vib=1+values.vibrance/150*(1-v/255);r=l+(r-l)*vib;g=l+(g-l)*vib;b=l+(b-l)*vib;r+=temp+ tint;b-=temp-tint;const fade=values.fade*0.45;r=r*(1-fade/255)+fade;g=g*(1-fade/255)+fade;b=b*(1-fade/255)+fade;p[i]=clamp(r);p[i+1]=clamp(g);p[i+2]=clamp(b)}
+ctx.putImageData(d,0,0);applyFilter();applyEffects()}
+function bla(x){return x}
+function applyFilter(){const map=Object.fromEntries(filters);const f=map[activeFilter];if(!f||f==='none')return;const temp=document.createElement('canvas');temp.width=canvas.width;temp.height=canvas.height;const tc=temp.getContext('2d');tc.filter=f;tc.drawImage(canvas,0,0);ctx.clearRect(0,0,canvas.width,canvas.height);ctx.drawImage(temp,0,0)}
+function applyEffects(){if(values.grain){const d=ctx.getImageData(0,0,canvas.width,canvas.height),p=d.data,n=values.grain*.55;for(let i=0;i<p.length;i+=4){const q=(Math.random()-.5)*n;p[i]=clamp(p[i]+q);p[i+1]=clamp(p[i+1]+q);p[i+2]=clamp(p[i+2]+q)}ctx.putImageData(d,0,0)}
+if(values.vignette){const g=ctx.createRadialGradient(canvas.width/2,canvas.height/2,Math.min(canvas.width,canvas.height)*.2,canvas.width/2,canvas.height/2,Math.max(canvas.width,canvas.height)*.72);g.addColorStop(0,'rgba(0,0,0,0)');g.addColorStop(1,`rgba(25,12,8,${values.vignette/100*.55})`);ctx.fillStyle=g;ctx.fillRect(0,0,canvas.width,canvas.height)}}
