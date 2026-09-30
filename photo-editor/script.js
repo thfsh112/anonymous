@@ -156,43 +156,43 @@ filterPanel.querySelectorAll('.filter').forEach(b=>{
 
 const cameras={
  '35mm 底片':{
-  icon:'🎞️',desc:'柔和高光・底片顆粒・暖色',
-  base:{exposure:-3,contrast:5,highlights:-18,shadows:13,saturation:-8,vibrance:12,temperature:7,tint:2,fade:6,grain:23,vignette:9,sharpness:4},
+  icon:'🎞️',desc:'乳化高光・細顆粒・自然膚色',
+  base:{exposure:-2,contrast:2,highlights:-28,shadows:18,saturation:-12,vibrance:10,temperature:8,tint:1,fade:5,grain:30,vignette:10,sharpness:2},
   filter:'Soft Film'
  },
  'CCD 數位相機':{
-  icon:'📷',desc:'高飽和・清晰・冷色數位感',
-  base:{exposure:4,contrast:17,highlights:-10,shadows:-8,saturation:24,vibrance:18,temperature:-4,tint:0,fade:0,grain:5,vignette:3,sharpness:24},
+  icon:'📷',desc:'CCD 偏色・高飽和・數位噪點',
+  base:{exposure:2,contrast:22,highlights:-3,shadows:-14,saturation:31,vibrance:22,temperature:-7,tint:-2,fade:0,grain:10,vignette:5,sharpness:18},
   filter:'CCD'
  },
  '2000s 老 DC':{
-  icon:'💿',desc:'閃光感・偏綠・老數位噪點',
-  base:{exposure:3,contrast:16,highlights:-8,shadows:-5,saturation:5,vibrance:5,temperature:1,tint:-4,fade:2,grain:12,vignette:5,sharpness:16},
+  icon:'💿',desc:'直打閃光・偏色・日期印字',
+  base:{exposure:4,contrast:25,highlights:10,shadows:-22,saturation:18,vibrance:14,temperature:-4,tint:-5,fade:1,grain:18,vignette:13,sharpness:12},
   filter:'2000s DC'
  },
  '拍立得':{
-  icon:'🖼️',desc:'奶油白・低對比・柔霧褪色',
-  base:{exposure:8,contrast:-13,highlights:-26,shadows:22,saturation:-12,vibrance:2,temperature:12,tint:3,fade:15,grain:12,vignette:1,sharpness:0},
+  icon:'🖼️',desc:'乳白黑位・柔焦・粉霧色彩',
+  base:{exposure:7,contrast:-22,highlights:-28,shadows:32,saturation:-18,vibrance:0,temperature:14,tint:4,fade:18,grain:8,vignette:8,sharpness:0},
   filter:'Polaroid'
  },
  '日系底片':{
-  icon:'🌿',desc:'亮陰影・低飽和・乾淨柔和',
-  base:{exposure:6,contrast:-10,highlights:-22,shadows:24,saturation:-12,vibrance:15,temperature:4,tint:2,fade:8,grain:15,vignette:2,sharpness:3},
-  filter:'Soft Film'
+  icon:'🌿',desc:'青綠陰影・亮白・低反差',
+  base:{exposure:7,contrast:-14,highlights:-30,shadows:30,saturation:-17,vibrance:18,temperature:-1,tint:-4,fade:9,grain:16,vignette:3,sharpness:2},
+  filter:'Cool Film'
  },
  '夜間閃光燈':{
-  icon:'⚡',desc:'人物亮、背景暗、強烈閃光',
-  base:{exposure:-7,contrast:28,highlights:-27,shadows:-30,saturation:15,vibrance:17,temperature:-9,tint:-1,fade:0,grain:7,vignette:15,sharpness:25},
+  icon:'⚡',desc:'中心爆閃・背景快速變暗',
+  base:{exposure:-6,contrast:34,highlights:12,shadows:-38,saturation:20,vibrance:18,temperature:-11,tint:2,fade:0,grain:16,vignette:22,sharpness:16},
   filter:'Night Flash'
  },
  '復古暖色':{
-  icon:'🧸',desc:'橘黃色・褪色・重顆粒',
-  base:{exposure:3,contrast:-8,highlights:-20,shadows:17,saturation:-16,vibrance:6,temperature:23,tint:4,fade:20,grain:24,vignette:12,sharpness:0},
+  icon:'🧸',desc:'琥珀色・奶油高光・重顆粒',
+  base:{exposure:2,contrast:-10,highlights:-25,shadows:20,saturation:-21,vibrance:8,temperature:28,tint:5,fade:23,grain:32,vignette:15,sharpness:0},
   filter:'Retro'
  },
  '黑白底片':{
-  icon:'🖤',desc:'銀鹽黑白・高反差・底片顆粒',
-  base:{exposure:0,contrast:22,highlights:-22,shadows:12,saturation:-100,vibrance:0,temperature:0,tint:0,fade:4,grain:27,vignette:14,sharpness:12},
+  icon:'🖤',desc:'銀鹽反差・深黑・粗顆粒',
+  base:{exposure:-1,contrast:30,highlights:-25,shadows:8,saturation:-100,vibrance:0,temperature:0,tint:0,fade:2,grain:34,vignette:17,sharpness:9},
   filter:'B&W'
  }
 };
@@ -554,6 +554,12 @@ function render(){
 
   [r,g,b]=applyColorProfile(r,g,b,f);
 
+  if(activeCamera){
+   const x=(i/4)%canvas.width;
+   const y=Math.floor((i/4)/canvas.width);
+   [r,g,b]=applyCameraSignature(r,g,b,x,y,canvas.width,canvas.height);
+  }
+
   p[i]=clamp(r);
   p[i+1]=clamp(g);
   p[i+2]=clamp(b);
@@ -566,6 +572,70 @@ function render(){
  }
 
  applyEffects();
+}
+
+function applyCameraSignature(r,g,b,x,y,w,h){
+ const name=activeCamera;
+ const lum=.2126*r+.7152*g+.0722*b;
+
+ if(name==='35mm 底片'){
+  const warm=Math.max(0,(lum-125)/130);
+  r+=warm*8; g+=warm*2; b-=warm*6;
+  const shadow=1-Math.min(1,lum/150);
+  r+=shadow*2; g+=shadow*3; b+=shadow*1;
+ }
+
+ if(name==='CCD 數位相機'){
+  const n=(Math.random()-.5)*7;
+  r+=n*1.15; g+=n*.8; b+=n*1.25;
+  if(lum>205){r+=5;g+=3;b+=1}
+ }
+
+ if(name==='2000s 老 DC'){
+  const n=(Math.random()-.5)*13;
+  r+=n*1.15; g+=n*.9; b+=n*1.25;
+  r=Math.round(r/3)*3;
+  g=Math.round(g/3)*3;
+  b=Math.round(b/3)*3;
+  if(lum>190){r=Math.min(255,r+18);g=Math.min(255,g+12);b=Math.min(255,b+8)}
+ }
+
+ if(name==='拍立得'){
+  r=lerp(r,Math.max(r,32),.16);
+  g=lerp(g,Math.max(g,29),.16);
+  b=lerp(b,Math.max(b,25),.16);
+  r+=5;g+=2;b-=3;
+ }
+
+ if(name==='日系底片'){
+  const shadow=1-Math.min(1,lum/170);
+  g+=shadow*5;b+=shadow*4;
+  r-=shadow*2;
+ }
+
+ if(name==='夜間閃光燈'){
+  const dx=(x-w/2)/(w/2);
+  const dy=(y-h/2)/(h/2);
+  const dist=Math.sqrt(dx*dx+dy*dy);
+  const flash=Math.max(0,1-dist);
+  const edge=Math.max(0,dist-.45);
+  r+=flash*25-edge*35;
+  g+=flash*24-edge*32;
+  b+=flash*20-edge*27;
+  if(lum>210){r+=10;g+=8;b+=5}
+ }
+
+ if(name==='復古暖色'){
+  r+=10;g+=3;b-=9;
+  if(lum>150){r+=5;g+=2;b-=3}
+ }
+
+ if(name==='黑白底片'){
+  const yv=.2126*r+.7152*g+.0722*b;
+  r=g=b=yv;
+ }
+
+ return [r,g,b];
 }
 
 function applySharpness(amount){
@@ -598,6 +668,7 @@ function applySharpness(amount){
 
 function applyEffects(){
  const w=canvas.width,h=canvas.height;
+
 
  if(values.grain){
   const d=ctx.getImageData(0,0,w,h);
@@ -635,6 +706,8 @@ function applyEffects(){
   ctx.fillStyle=g;
   ctx.fillRect(0,0,w,h);
  }
+
+ applyCameraOverlay();
 }
 
 // 顯示目前濾鏡名稱的簡短提示，不影響原本版面。
