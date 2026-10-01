@@ -818,41 +818,38 @@ function applyCameraOverlay(){
  if(!activeCamera)return;
  const w=canvas.width,h=canvas.height;
 
- // 拍立得：真正的白色相框，底部比其他三邊厚。
  if(activeCamera==='拍立得'){
   const snapshot=document.createElement('canvas');
   snapshot.width=w;snapshot.height=h;
   const sctx=snapshot.getContext('2d');
   sctx.drawImage(canvas,0,0);
-  const border=Math.max(10,Math.round(Math.min(w,h)*.035));
-  const bottom=Math.max(28,Math.round(Math.min(w,h)*.16));
-  ctx.fillStyle='#fffdf8';
+
+  const side=Math.max(16,Math.round(Math.min(w,h)*.055));
+  const top=Math.max(18,Math.round(Math.min(w,h)*.055));
+  const bottom=Math.max(60,Math.round(Math.min(w,h)*.22));
+
+  ctx.save();
+  ctx.fillStyle='#fffdf7';
   ctx.fillRect(0,0,w,h);
-  ctx.drawImage(snapshot,border,border,w-border*2,h-border-bottom);
-  // 輕微紙張暖色，讓邊框不像純網頁白。
-  ctx.fillStyle='rgba(255,247,235,.10)';
-  ctx.fillRect(0,0,w,h);
+  ctx.drawImage(snapshot,side,top,w-side*2,h-top-bottom);
+  ctx.restore();
  }
 
- // 2000s 老 DC：左下角橘色數位日期印字。
  if(activeCamera==='2000s 老 DC'){
   const now=new Date();
-  const yy=String(now.getFullYear()).slice(-2);
-  const mm=String(now.getMonth()+1).padStart(2,'0');
-  const dd=String(now.getDate()).padStart(2,'0');
-  const stamp=yy+' '+mm+' '+dd;
-  const size=Math.max(12,Math.round(Math.min(w,h)*.032));
-  const x=Math.max(8,Math.round(w*.035));
-  const y=h-Math.max(10,Math.round(h*.035));
+  const stamp=String(now.getFullYear()).slice(-2)+' '+String(now.getMonth()+1).padStart(2,'0')+' '+String(now.getDate()).padStart(2,'0');
+  const size=Math.max(18,Math.round(Math.min(w,h)*.045));
+  const x=Math.max(14,Math.round(w*.04));
+  const y=h-Math.max(14,Math.round(h*.045));
+
   ctx.save();
-  ctx.font='700 '+size+'px "Courier New",monospace';
+  ctx.font='900 '+size+'px "Courier New",monospace';
   ctx.textAlign='left';
   ctx.textBaseline='bottom';
-  ctx.shadowColor='rgba(40,10,0,.45)';
-  ctx.shadowBlur=1;
-  ctx.shadowOffsetX=1;
-  ctx.shadowOffsetY=1;
-  ctx.fillStyle='#ff7a32';
+  ctx.lineWidth=Math.max(2,Math.round(size*.10));
+  ctx.strokeStyle='rgba(55,15,0,.65)';
+  ctx.strokeText(stamp,x,y);
+  ctx.fillStyle='#ff6b22';
   ctx.fillText(stamp,x,y);
   ctx.restore();
  }
