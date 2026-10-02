@@ -1,9 +1,36 @@
 <!doctype html>
 <html lang="zh-Hant">
-<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><title>班級訂飯 🍱</title><link rel="stylesheet" href="style.css?v=20261002-20"></head>
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>班級訂飯 🍱</title><link rel="stylesheet" href="style.css?v=20261002-30">
+</head>
 <body>
-<header class="top"><div><div class="eyebrow">CLASS LUNCH</div><h1>今天吃什麼？🍱</h1><p>看今日菜單，選座號、填金額，再直接留言。</p></div><a class="admin-link" href="admin.html">管理</a></header>
-<main><section><div class="section-head"><h2>開放中的菜單</h2><span id="menuCount"></span></div><div id="menus" class="menu-grid"><div class="loading">載入中…</div></div></section></main>
-<div id="imageModal" class="modal hidden" onclick="closeImage(event)"><div class="image-viewer" onclick="event.stopPropagation()"><button type="button" class="close" onclick="closeImage()">×</button><img id="largeImage" alt="菜單大圖"></div></div><div id="toast" class="toast"></div>
-<script>window.APP_CONFIG={supabaseUrl:"https://roynzxilxumfzzuezelg.supabase.co",publishableKey:"sb_publishable_nvmHzVjH7bZ8F9cnJYzKCg_PSPlhCXU"};</script><script src="app.js?v=20261002-19"></script>
+<header class="top">
+  <div><div class="eyebrow">CLASS LUNCH</div><h1>今天吃什麼？🍱</h1><p id="welcomeText">登入後查看開放中的訂餐。</p></div>
+  <div class="header-actions"><button id="logoutBtn" class="ghost hidden" type="button">登出</button><a class="admin-link" href="admin.html">管理</a></div>
+</header>
+<main>
+<section id="loginBox" class="panel login-panel">
+  <h2>學生登入</h2>
+  <form id="loginForm">
+    <label>座號<input id="seatLogin" type="number" min="1" max="35" inputmode="numeric" required placeholder="例如 3"></label>
+    <label>密碼<input id="passwordLogin" type="password" required autocomplete="current-password"></label>
+    <button class="primary" type="submit">登入</button>
+  </form>
+  <p class="hint">座號 14 不使用。若忘記密碼請找管理員重設。</p>
+</section>
+
+<div id="studentApp" class="hidden">
+  <section class="student-card"><div><small>目前登入</small><strong id="studentIdentity"></strong></div></section>
+  <section>
+    <div class="section-head"><h2>開放中的訂餐</h2><span id="menuCount"></span></div>
+    <div id="menus" class="menu-grid"><div class="loading">載入中…</div></div>
+  </section>
+</div>
+</main>
+<div id="imageModal" class="modal hidden" onclick="closeImage(event)"><div class="image-viewer" onclick="event.stopPropagation()"><button type="button" class="close" onclick="closeImage()">×</button><img id="largeImage" alt="菜單大圖"></div></div>
+<div id="toast" class="toast"></div>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>window.APP_CONFIG={supabaseUrl:"https://roynzxilxumfzzuezelg.supabase.co",publishableKey:"sb_publishable_nvmHzVjH7bZ8F9cnJYzKCg_PSPlhCXU"};</script>
+<script src="app.js?v=20261002-30"></script>
 </body></html>
