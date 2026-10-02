@@ -55,6 +55,7 @@ $('setupForm').addEventListener('submit',async e=>{
 
 $('logoutBtn').addEventListener('click',async()=>{await db.auth.signOut();student=null;refresh()});
 $('accountBtn').addEventListener('click',()=>{$('passwordForm').reset();$('accountDialog').showModal()});
+$('historyBtn').addEventListener('click',openHistory);
 document.querySelectorAll('[data-close]').forEach(b=>b.addEventListener('click',()=>$(b.dataset.close).close()));
 
 $('passwordForm').addEventListener('submit',async e=>{
@@ -73,17 +74,21 @@ async function refresh(){
   const{data:{user}}=await db.auth.getUser();
   if(!user){
     stopStudentRealtime();
-    $('loginBox').classList.remove('hidden');$('setupBox').classList.add('hidden');$('studentApp').classList.add('hidden');$('logoutBtn').classList.add('hidden');$('accountBtn').classList.add('hidden');
+    $('loginBox').classList.remove('hidden');$('setupBox').classList.add('hidden');$('studentApp').classList.add('hidden');
+    $('heroAccount').classList.add('hidden');$('logoutBtn').classList.add('hidden');$('accountBtn').classList.add('hidden');$('historyBtn').classList.add('hidden');$('adminLink').classList.add('hidden');
     $('welcomeText').textContent='登入後查看開放中的訂餐。';return;
   }
   const{data:s,error}=await db.from('students').select('id,seat_number,name,active,must_setup').eq('auth_user_id',user.id).maybeSingle();
   if(error||!s||!s.active){await db.auth.signOut();toast('此學生帳號目前無法使用');return refresh()}
-  student=s;startStudentRealtime();$('logoutBtn').classList.remove('hidden');$('loginBox').classList.add('hidden');
+  student=s;startStudentRealtime();$('loginBox').classList.add('hidden');$('heroAccount').classList.remove('hidden');$('logoutBtn').classList.remove('hidden');$('historyBtn').classList.remove('hidden');
+  $('adminLink').classList.toggle('hidden',s.seat_number!==99);
+  $('heroIdentity').textContent=s.seat_number+'號 '+(s.name||'');
+
   if(s.must_setup&&s.seat_number!==99){
-    $('accountBtn').classList.add('hidden');$('studentApp').classList.add('hidden');$('setupBox').classList.remove('hidden');$('welcomeText').textContent=s.seat_number+'號第一次登入設定';return;
+    $('accountBtn').classList.add('hidden');$('historyBtn').classList.add('hidden');$('adminLink').classList.add('hidden');$('studentApp').classList.add('hidden');$('setupBox').classList.remove('hidden');$('welcomeText').textContent=s.seat_number+'號第一次登入設定';return;
   }
   $('accountBtn').classList.remove('hidden');$('setupBox').classList.add('hidden');$('studentApp').classList.remove('hidden');
-  $('studentIdentity').textContent=s.seat_number+'號 '+(s.name||'');$('welcomeText').textContent='歡迎，'+(s.name||s.seat_number+'號')+'。';
+  $('welcomeText').textContent='歡迎回來，'+(s.name||s.seat_number+'號')+'。看看今天想吃什麼。';
   await loadSessions();
 }
 
@@ -216,6 +221,45 @@ async function cancelOrder(sessionId){
   const{error}=await db.rpc('cancel_class_lunch_order_v2',{p_session_id:sessionId});
   if(error)return toast('取消失敗：'+error.message);
   toast('訂單已取消');await loadSessions();
+}
+async function openHistory(){
+  if(!student)return;
+  $('historyDialog').showModal();
+  $('historyList').innerHTML='<div class="loading">載入中…</div>';
+
+  const{data:history,error}=await db.from('orders')
+    .select('id,item_name,unit_price,note,paid,order_date,created_at,meal_session_id,meal_sessions(meal_date,menu_templates(name))')
+    .order('order_date',{ascending:false})
+    .order('created_at',{ascending:false});
+  if(error){$('historyList').innerHTML='<div class="loading">讀取失敗</div>';return toast('歷史訂單讀取失敗：'+error.message)}
+
+  const list=history||[],ids=list.map(x=>x.id);
+  let marketOrders=new Set();
+  if(ids.length){
+    const{data:oi}=await db.from('order_items').select('order_id,is_market_price').in('order_id',ids).eq('is_market_price',true);
+    marketOrders=new Set((oi||[]).map(x=>x.order_id));
+  }
+
+  const total=list.reduce((sum,o)=>sum+Number(o.unit_price||0),0);
+  const paid=list.filter(o=>o.paid).length;
+  const hasMarket=list.some(o=>marketOrders.has(o.id)||String(o.item_name||'').includes('（時價）'));
+  $('historyCount').textContent=list.length;
+  $('historyTotal').textContent=money(total)+(hasMarket?' ＋ 時價':'');
+  $('historyPaid').textContent=paid;
+  $('historyUnpaid').textContent=list.length-paid;
+
+  $('historyList').innerHTML=list.length?list.map(o=>{
+    const date=o.meal_sessions?.meal_date||o.order_date||'';
+    const shop=o.meal_sessions?.menu_templates?.name||'歷史訂單';
+    const market=marketOrders.has(o.id)||String(o.item_name||'').includes('（時價）');
+    return '<article class="history-row">'+
+      '<div class="history-date">'+esc(date?fmtDate(date):'—')+'</div>'+
+      '<div class="history-main"><div class="history-title"><b>'+esc(shop)+'</b><span class="'+(o.paid?'history-paid':'history-unpaid')+'">'+(o.paid?'已付款':'未付款')+'</span></div>'+
+      '<div class="history-items">'+esc(o.item_name||'未記錄品項')+'</div>'+
+      (o.note?'<small>備註：'+esc(o.note)+'</small>':'')+'</div>'+
+      '<strong class="history-price">'+money(o.unit_price)+(market?' ＋ 時價':'')+'</strong>'+
+    '</article>';
+  }).join(''):'<div class="history-empty"><b>還沒有歷史訂單</b><span>完成第一次訂餐後會出現在這裡。</span></div>';
 }
 function openImage(u){$('largeImage').src=u;$('imageModal').classList.remove('hidden');document.body.style.overflow='hidden'}
 function closeImage(e){if(e&&e.target!==$('imageModal')&&!e.target.classList.contains('close'))return;$('imageModal').classList.add('hidden');$('largeImage').src='';document.body.style.overflow=''}
