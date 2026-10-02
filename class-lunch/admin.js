@@ -12,21 +12,33 @@ async function isAdmin(){const{data:{user}}=await db.auth.getUser();if(!user)ret
 $('loginForm').addEventListener('submit',async e=>{
   e.preventDefault();
   const username=$('adminUsername').value.trim(),password=$('password').value;
-  if(username!==ADMIN_USERNAME)return toast('帳號或密碼錯誤');
+  if(username!==ADMIN_USERNAME||password!==ADMIN_USERNAME)return toast('帳號或密碼錯誤');
+
+  const{data:{session}}=await legacyDb.auth.getSession();
+  if(!session)return toast('請先回首頁登入 99 號，再進管理頁');
+
+  const{data:self,error:selfError}=await legacyDb.from('students')
+    .select('seat_number,active')
+    .eq('auth_user_id',session.user.id)
+    .maybeSingle();
+  if(selfError||!self||!self.active||self.seat_number!==99)return toast('管理頁只開放 99 號');
+
   localStorage.removeItem('class-lunch-admin-no-legacy-migrate');
-  const{data,error}=await db.functions.invoke('class-lunch-admin-login',{body:{username,password}});
-  if(error||data?.error||!data?.access_token||!data?.refresh_token)return toast('帳號或密碼錯誤');
-  const{error:setError}=await db.auth.setSession({access_token:data.access_token,refresh_token:data.refresh_token});
-  if(setError)return toast('登入失敗：'+setError.message);
+  const{error:setError}=await db.auth.setSession({
+    access_token:session.access_token,
+    refresh_token:session.refresh_token
+  });
+  if(setError)return toast('管理登入失敗：'+setError.message);
+
   $('password').value='';
-  refresh();
+  await refresh();
 });
 $('logoutBtn').addEventListener('click',async()=>{
   localStorage.setItem('class-lunch-admin-no-legacy-migrate','1');
   await db.auth.signOut();
   refresh();
 });
-$('adminAccountBtn').addEventListener('click',()=>{$('adminAccountForm').reset();$('adminAccountDialog').showModal()});
+$('adminAccountBtn').addEventListener('click',()=>toast('管理登入固定使用 tnfsh112 / tnfsh112'));
 $('adminAccountForm').addEventListener('submit',async e=>{
   e.preventDefault();
   const p1=$('adminNewPassword').value,p2=$('adminNewPassword2').value;
@@ -57,10 +69,6 @@ async function refresh(){
   await migrateLegacyAdminSession();
   const ok=await isAdmin();$('loginBox').classList.toggle('hidden',ok);$('adminApp').classList.toggle('hidden',!ok);$('loginStatus').textContent=ok?'已登入管理者':'登入後管理菜單、日期、學生與付款。';
   if(!ok){stopAdminRealtime();return}
-  if(localStorage.getItem('class-lunch-admin-password-v1')!=='done'){
-    const{error:pwError}=await db.auth.updateUser({password:ADMIN_USERNAME});
-    if(!pwError)localStorage.setItem('class-lunch-admin-password-v1','done');
-  }
   startAdminRealtime();
   $('sessionDate').value=today();
   await Promise.all([loadTemplates(),loadSessions(),loadStudents()]);
