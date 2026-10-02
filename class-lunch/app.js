@@ -107,7 +107,7 @@ async function loadSessions(){
     orderItemsByOrder={};
     const orderIds=orders.map(o=>o.id);
     if(orderIds.length){
-      const{data:oi,error:oie}=await db.from('order_items').select('order_id,menu_item_id,quantity,unit_price,is_market_price').in('order_id',orderIds).order('id');
+      const{data:oi,error:oie}=await db.from('order_items').select('order_id,menu_item_id,quantity,unit_price,is_market_price,market_price_amount').in('order_id',orderIds).order('id');
       if(oie)return toast('讀取訂單品項失敗：'+oie.message);
       for(const row of (oi||[])){
         if(!orderItemsByOrder[row.order_id])orderItemsByOrder[row.order_id]=[];
@@ -130,8 +130,10 @@ function renderSessions(){
   const img=s.menu_templates?.image_url?'<div class="photo-button" data-image-url="'+esc(s.menu_templates.image_url)+'"><img class="menu-photo" src="'+esc(s.menu_templates.image_url)+'" alt="菜單"></div>':'<div class="menu-photo placeholder">🍱</div>';
   let state='';
   if(o){
-    const hasMarket=(orderItemsByOrder[o.id]||[]).some(x=>x.is_market_price)||String(o.item_name||'').includes('（時價）');
-    state='<div class="order-status '+(o.paid?'paid':'pending')+'"><b>'+(o.paid?'✓ 已付款':'已訂餐 · 未付款')+'</b><div>'+esc(o.item_name)+' · '+money(o.unit_price)+(hasMarket?' ＋ 時價':'')+'</div><small>'+esc(o.note||'無備註')+'</small></div>';
+    const rows=orderItemsByOrder[o.id]||[];
+    const knownMarket=rows.some(x=>x.is_market_price);
+    const unresolvedMarket=rows.some(x=>x.is_market_price&&x.market_price_amount==null)||(!knownMarket&&String(o.item_name||'').includes('（時價）'));
+    state='<div class="order-status '+(o.paid?'paid':'pending')+'"><b>'+(o.paid?'✓ 已付款':'已訂餐 · 未付款')+'</b><div>'+esc(o.item_name)+' · '+money(o.unit_price)+(unresolvedMarket?' ＋ 時價':'')+'</div><small>'+esc(o.note||'無備註')+'</small></div>';
     if(!closed&&!o.paid)state+='<div class="order-actions"><button class="primary" onclick="openOrderEditor('+s.id+')">修改訂單</button><button class="small-btn danger" onclick="cancelOrder('+s.id+')">取消訂單</button></div>';
   }else if(closed){
     state='<div class="closed-order">此訂餐已截止</div>';
@@ -234,15 +236,16 @@ async function openHistory(){
   if(error){$('historyList').innerHTML='<div class="loading">讀取失敗</div>';return toast('歷史訂單讀取失敗：'+error.message)}
 
   const list=history||[],ids=list.map(x=>x.id);
-  let marketOrders=new Set();
+  let knownMarketOrders=new Set(),unresolvedMarketOrders=new Set();
   if(ids.length){
-    const{data:oi}=await db.from('order_items').select('order_id,is_market_price').in('order_id',ids).eq('is_market_price',true);
-    marketOrders=new Set((oi||[]).map(x=>x.order_id));
+    const{data:oi}=await db.from('order_items').select('order_id,is_market_price,market_price_amount').in('order_id',ids).eq('is_market_price',true);
+    knownMarketOrders=new Set((oi||[]).map(x=>x.order_id));
+    unresolvedMarketOrders=new Set((oi||[]).filter(x=>x.market_price_amount==null).map(x=>x.order_id));
   }
 
   const total=list.reduce((sum,o)=>sum+Number(o.unit_price||0),0);
   const paid=list.filter(o=>o.paid).length;
-  const hasMarket=list.some(o=>marketOrders.has(o.id)||String(o.item_name||'').includes('（時價）'));
+  const hasMarket=list.some(o=>unresolvedMarketOrders.has(o.id)||(!knownMarketOrders.has(o.id)&&String(o.item_name||'').includes('（時價）')));
   $('historyCount').textContent=list.length;
   $('historyTotal').textContent=money(total)+(hasMarket?' ＋ 時價':'');
   $('historyPaid').textContent=paid;
@@ -251,7 +254,7 @@ async function openHistory(){
   $('historyList').innerHTML=list.length?list.map(o=>{
     const date=o.meal_sessions?.meal_date||o.order_date||'';
     const shop=o.meal_sessions?.menu_templates?.name||'歷史訂單';
-    const market=marketOrders.has(o.id)||String(o.item_name||'').includes('（時價）');
+    const market=unresolvedMarketOrders.has(o.id)||(!knownMarketOrders.has(o.id)&&String(o.item_name||'').includes('（時價）'));
     return '<article class="history-row">'+
       '<div class="history-date">'+esc(date?fmtDate(date):'—')+'</div>'+
       '<div class="history-main"><div class="history-title"><b>'+esc(shop)+'</b><span class="'+(o.paid?'history-paid':'history-unpaid')+'">'+(o.paid?'已付款':'未付款')+'</span></div>'+
