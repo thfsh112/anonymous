@@ -47,7 +47,14 @@
     <label>菜單名稱<input id="editTemplateName" maxlength="100" required></label>
     <label>更換圖片（不更換可留空）<input id="editTemplateImage" type="file" accept="image/*"></label>
     <label class="check-row"><input id="editTemplateActive" type="checkbox"> 啟用此菜單</label>
-    <div class="dialog-actions"><button type="button" class="ghost" data-close="templateDialog">取消</button><button class="primary" type="submit">儲存</button></div>
+    <div class="ocr-box">
+      <div class="section-head"><div><h3>菜單品項</h3><p class="hint">可由菜單圖片 OCR 辨識後再手動校正。</p></div><button id="ocrMenuBtn" type="button" class="small-btn">辨識菜單</button></div>
+      <div id="ocrProgress" class="hint"></div>
+      <textarea id="ocrRawText" rows="5" placeholder="OCR 原始文字會顯示在這裡"></textarea>
+      <div class="item-editor-head"><b>品項清單</b><button id="addMenuItemRowBtn" type="button" class="small-btn">＋新增品項</button></div>
+      <div id="menuItemEditor"></div>
+    </div>
+    <div class="dialog-actions"><button type="button" class="ghost" data-close="templateDialog">取消</button><button class="primary" type="submit">儲存菜單與品項</button></div>
   </form>
 </dialog>
 
@@ -74,6 +81,7 @@
 
 <div id="toast" class="toast"></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
 <script>window.APP_CONFIG={supabaseUrl:"https://roynzxilxumfzzuezelg.supabase.co",publishableKey:"sb_publishable_nvmHzVjH7bZ8F9cnJYzKCg_PSPlhCXU"};</script>
-<script src="admin.js?v=20261002-40"></script>
+<script src="admin.js?v=20261002-41"></script>
 </body></html>
