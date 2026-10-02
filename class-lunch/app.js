@@ -1,7 +1,7 @@
 const{createClient}=supabase;
 const db=createClient(APP_CONFIG.supabaseUrl,APP_CONFIG.publishableKey,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}});
 const $=id=>document.getElementById(id);
-let student=null,sessions=[],orders=[],menuItems=[],editingSessionId=null;
+let student=null,sessions=[],orders=[],menuItems=[],orderItemsByOrder={},testSelections=[],editingSessionId=null;
 const money=n=>'$'+Number(n||0).toLocaleString('zh-TW');
 const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c]));
 const today=()=>new Date().toLocaleDateString('en-CA');
@@ -89,7 +89,7 @@ async function refresh(){
 async function loadSessions(){
   const [{data:ss,error:se},{data:os,error:oe}]=await Promise.all([
     db.from('meal_sessions').select('id,meal_date,cutoff_at,is_active,menu_template_id,menu_templates(id,name,image_url,active)').eq('is_active',true).gte('meal_date',today()).order('meal_date'),
-    db.from('orders').select('id,meal_session_id,item_name,unit_price,note,paid,created_at').order('created_at',{ascending:false})
+    db.from('orders').select('id,meal_session_id,item_name,unit_price,note,paid,created_at,menu_item_id').order('created_at',{ascending:false})
   ]);
   if(se||oe)return toast((se||oe).message);
   sessions=(ss||[]).filter(x=>x.menu_templates?.active!==false);orders=os||[];$('menuCount').textContent=sessions.length+' 份';
@@ -98,7 +98,17 @@ async function loadSessions(){
     const{data:mi,error:me}=await db.from('menu_items').select('id,menu_template_id,category,name,price,active,sort_order').in('menu_template_id',ids).eq('active',true).order('sort_order').order('id');
     if(me)return toast('讀取菜單品項失敗：'+me.message);
     menuItems=mi||[];
-  }else menuItems=[];
+    orderItemsByOrder={};
+    const orderIds=orders.map(o=>o.id);
+    if(orderIds.length){
+      const{data:oi,error:oie}=await db.from('order_items').select('order_id,menu_item_id,quantity,unit_price').in('order_id',orderIds).order('id');
+      if(oie)return toast('讀取訂單品項失敗：'+oie.message);
+      for(const row of (oi||[])){
+        if(!orderItemsByOrder[row.order_id])orderItemsByOrder[row.order_id]=[];
+        orderItemsByOrder[row.order_id].push(row);
+      }
+    }
+  }else{menuItems=[];orderItemsByOrder={};}
   renderSessionPicker();renderSessions();
 }
 function renderSessionPicker(){
@@ -124,6 +134,36 @@ function renderSessions(){
   const deadline='<div class="deadline '+(closed?'closed':'')+'"><span>截止：'+esc(fmtCutoff(s.cutoff_at)||'未設定')+'</span><b>'+esc(countdown(s))+'</b></div>';
   $('menus').innerHTML='<article class="menu-card">'+img+'<div class="menu-body"><h3>'+esc(s.menu_templates?.name||'菜單')+'</h3><div class="menu-meta">📅 '+esc(fmtDate(s.meal_date))+'</div>'+deadline+state+'</div></article>';
 }
+function getTestItemsForSession(){
+  const s=sessions.find(x=>x.id===editingSessionId);
+  return s?menuItems.filter(x=>x.menu_template_id===s.menu_template_id&&x.active!==false):[];
+}
+function renderTestOrderRows(){
+  const items=getTestItemsForSession();
+  if(!testSelections.length)testSelections=[''];
+  while(testSelections.length>1&&testSelections.at(-1)===''&&testSelections.at(-2)==='')testSelections.pop();
+  if(testSelections.at(-1)!==''&&testSelections.length<20)testSelections.push('');
+
+  $('testOrderRows').innerHTML=testSelections.map((v,i)=>{
+    const opts='<option value="">請選擇餐點</option>'+items.map(x=>'<option value="'+x.id+'" '+(String(x.id)===String(v)?'selected':'')+'>'+esc(x.name+'　'+money(x.price))+'</option>').join('');
+    const removable=v!==''?'<button type="button" class="small-btn danger" onclick="removeTestOrderSelection('+i+')">移除</button>':'';
+    return '<div class="test-order-row"><select onchange="updateTestOrderSelection('+i+',this.value)">'+opts+'</select>'+removable+'</div>';
+  }).join('');
+
+  const total=testSelections.filter(Boolean).reduce((sum,id)=>{
+    const x=items.find(m=>String(m.id)===String(id));
+    return sum+Number(x?.price||0);
+  },0);
+  $('selectedItemPrice').textContent=money(total);
+}
+function updateTestOrderSelection(i,value){
+  testSelections[i]=value;
+  renderTestOrderRows();
+}
+function removeTestOrderSelection(i){
+  testSelections.splice(i,1);
+  renderTestOrderRows();
+}
 function openOrderEditor(sessionId){
   const s=sessions.find(x=>x.id===sessionId),o=orders.find(x=>x.meal_session_id===sessionId);
   if(!s||expired(s)||o?.paid)return;
@@ -131,12 +171,19 @@ function openOrderEditor(sessionId){
   const isTest=student?.seat_number===99;
   $('freeOrderFields').classList.toggle('hidden',isTest);$('testOrderFields').classList.toggle('hidden',!isTest);
   if(isTest){
-    const items=menuItems.filter(x=>x.menu_template_id===s.menu_template_id&&x.active!==false);
-    if(!items.length)return toast('這份菜單還沒有建立品項，請先到後台辨識／新增');
-    $('orderMenuItem').innerHTML=items.map(x=>'<option value="'+x.id+'">'+esc((x.category?x.category+'｜':'')+x.name+'　'+money(x.price))+'</option>').join('');
-    const chosen=items.find(x=>x.name===o?.item_name&&Number(x.price)===Number(o?.unit_price))||items[0];
-    $('orderMenuItem').value=String(chosen.id);$('selectedItemPrice').textContent=money(chosen.price);
-    $('orderMenuItem').onchange=()=>{const x=items.find(i=>String(i.id)===$('orderMenuItem').value);$('selectedItemPrice').textContent=money(x?.price||0)};
+    const items=getTestItemsForSession();
+    if(!items.length)return toast('這份菜單還沒有建立品項，請先到後台新增');
+    const existing=o?(orderItemsByOrder[o.id]||[]):[];
+    testSelections=[];
+    if(existing.length){
+      for(const row of existing){
+        for(let q=0;q<Number(row.quantity||1);q++)testSelections.push(String(row.menu_item_id));
+      }
+    }else if(o?.menu_item_id){
+      testSelections=[String(o.menu_item_id)];
+    }
+    testSelections.push('');
+    renderTestOrderRows();
   }else{
     $('orderItem').value=o?.item_name||'';$('orderAmount').value=o?.unit_price??'';
   }
@@ -148,7 +195,13 @@ $('orderDialogForm').addEventListener('submit',async e=>{
   b.disabled=true;b.textContent='儲存中…';
   let error=null;
   if(student?.seat_number===99){
-    const r=await db.rpc('place_class_lunch_order_v3',{p_session_id:editingSessionId,p_menu_item_id:Number($('orderMenuItem').value),p_note:note});error=r.error;
+    const counts=new Map();
+    for(const raw of testSelections.filter(Boolean)){
+      const id=Number(raw);counts.set(id,(counts.get(id)||0)+1);
+    }
+    if(!counts.size){b.disabled=false;b.textContent='儲存訂單';return toast('至少選一個品項')}
+    const items=[...counts.entries()].map(([menu_item_id,qty])=>({menu_item_id,qty}));
+    const r=await db.rpc('place_class_lunch_order_v4',{p_session_id:editingSessionId,p_items:items,p_note:note});error=r.error;
   }else{
     const item=$('orderItem').value.trim(),amount=Number($('orderAmount').value);
     if(!item){b.disabled=false;b.textContent='儲存訂單';return toast('請輸入品項')}
