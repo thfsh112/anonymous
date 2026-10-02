@@ -94,7 +94,7 @@ async function loadSessions(){
   ]);
   if(se||oe)return toast((se||oe).message);
   sessions=(ss||[]).filter(x=>x.menu_templates?.active!==false);orders=os||[];$('menuCount').textContent=sessions.length+' 份';
-  if(student?.seat_number===99&&sessions.length){
+  if(sessions.length){
     const ids=[...new Set(sessions.map(s=>s.menu_template_id))];
     const{data:mi,error:me}=await db.from('menu_items').select('id,menu_template_id,category,name,price,active,sort_order').in('menu_template_id',ids).eq('active',true).order('sort_order').order('id');
     if(me)return toast('讀取菜單品項失敗：'+me.message);
@@ -169,11 +169,9 @@ function openOrderEditor(sessionId){
   const s=sessions.find(x=>x.id===sessionId),o=orders.find(x=>x.meal_session_id===sessionId);
   if(!s||expired(s)||o?.paid)return;
   editingSessionId=sessionId;$('orderDialogTitle').textContent=s.menu_templates?.name||'訂餐';$('orderDialogDate').textContent=fmtDate(s.meal_date);$('orderNote').value=o?.note||'';
-  const isTest=student?.seat_number===99;
-  $('freeOrderFields').classList.toggle('hidden',isTest);$('testOrderFields').classList.toggle('hidden',!isTest);
-  if(isTest){
-    const items=getTestItemsForSession();
-    if(!items.length)return toast('這份菜單還沒有建立品項，請先到後台新增');
+  const items=getTestItemsForSession(),hasStructuredItems=items.length>0;
+  $('freeOrderFields').classList.toggle('hidden',hasStructuredItems);$('testOrderFields').classList.toggle('hidden',!hasStructuredItems);
+  if(hasStructuredItems){
     const existing=o?(orderItemsByOrder[o.id]||[]):[];
     testSelections=[];
     if(existing.length){
@@ -195,7 +193,8 @@ $('orderDialogForm').addEventListener('submit',async e=>{
   const note=$('orderNote').value.trim(),b=e.currentTarget.querySelector('button[type="submit"]');
   b.disabled=true;b.textContent='儲存中…';
   let error=null;
-  if(student?.seat_number===99){
+  const hasStructuredItems=getTestItemsForSession().length>0;
+  if(hasStructuredItems){
     const counts=new Map();
     for(const raw of testSelections.filter(Boolean)){
       const id=Number(raw);counts.set(id,(counts.get(id)||0)+1);
