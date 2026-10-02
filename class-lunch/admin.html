@@ -1,6 +1,6 @@
 <!doctype html>
 <html lang="zh-Hant">
-<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><title>訂飯管理</title><link rel="stylesheet" href="style.css?v=20261002-47"></head>
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><title>訂飯管理</title><link rel="stylesheet" href="style.css?v=20261003-02"></head>
 <body>
 <header class="top"><div><div class="eyebrow">ADMIN</div><h1>訂飯管理</h1><p id="loginStatus">登入後管理菜單、日期、學生與付款。</p></div><a class="admin-link" href="index.html">回前台</a></header>
 <main>
@@ -69,6 +69,16 @@
   </form>
 </dialog>
 
+<dialog id="marketPriceDialog" class="form-dialog">
+  <form id="marketPriceForm">
+    <div class="dialog-head"><div><small id="marketPriceSeat"></small><h2>設定時價</h2></div><button type="button" class="close-dialog" data-close="marketPriceDialog">×</button></div>
+    <p class="hint">只調整這位學生這張訂單的時價，不會修改菜單原本設定。</p>
+    <div id="marketPriceRows"></div>
+    <div class="market-total-preview">調整後訂單金額：<b id="marketPricePreview">$0</b></div>
+    <div class="dialog-actions"><button type="button" class="ghost" data-close="marketPriceDialog">取消</button><button class="primary" type="submit">儲存時價</button></div>
+  </form>
+</dialog>
+
 <dialog id="studentDialog" class="form-dialog">
   <form id="studentEditForm">
     <div class="dialog-head"><div><small id="editStudentSeat"></small><h2>編輯學生</h2></div><button type="button" class="close-dialog" data-close="studentDialog">×</button></div>
@@ -83,5 +93,5 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
 <script>window.APP_CONFIG={supabaseUrl:"https://roynzxilxumfzzuezelg.supabase.co",publishableKey:"sb_publishable_nvmHzVjH7bZ8F9cnJYzKCg_PSPlhCXU"};</script>
-<script src="admin.js?v=20261002-47"></script>
+<script src="admin.js?v=20261003-02"></script>
 </body></html>
