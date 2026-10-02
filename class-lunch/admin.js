@@ -3,7 +3,7 @@ const db=createClient(APP_CONFIG.supabaseUrl,APP_CONFIG.publishableKey,{auth:{pe
 const $=id=>document.getElementById(id),money=n=>'$'+Number(n||0).toLocaleString('zh-TW');
 const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c]));
 const today=()=>new Date().toLocaleDateString('en-CA');
-let templates=[],sessions=[],students=[],editingTemplateId=null,editingSessionId=null,editingStudentId=null,menuEditorItems=[],realtimeChannel=null,realtimeTimer=null;
+let templates=[],sessions=[],students=[],editingTemplateId=null,editingSessionId=null,editingStudentId=null,menuEditorItems=[],editingMarketOrderId=null,marketOrderItems=[],marketFixedTotal=0,realtimeChannel=null,realtimeTimer=null;
 function toast(t){const e=$('toast');e.textContent=t;e.classList.add('show');setTimeout(()=>e.classList.remove('show'),2600)}
 async function isAdmin(){const{data:{user}}=await db.auth.getUser();if(!user)return false;const{data}=await db.from('admin_users').select('email').eq('email',user.email).maybeSingle();return!!data}
 $('loginForm').addEventListener('submit',async e=>{e.preventDefault();const{error}=await db.auth.signInWithPassword({email:$('email').value.trim(),password:$('password').value});if(error)return toast('登入失敗');refresh()});
@@ -249,9 +249,9 @@ async function loadOverview(){
   const list=os||[],paid=list.filter(o=>o.paid).length,total=list.reduce((a,o)=>a+Number(o.unit_price||0)*Number(o.quantity||1),0);
   $('statOrders').textContent=list.length;$('statPaid').textContent=paid;$('statUnpaidCount').textContent=list.length-paid;
 
-  const itemCounts=new Map(),normalizedOrders=new Set(),marketOrders=new Set(),orderIds=list.map(o=>o.id);
+  const itemCounts=new Map(),normalizedOrders=new Set(),marketByOrder=new Map(),unresolvedOrders=new Set(),orderIds=list.map(o=>o.id);
   if(orderIds.length){
-    const{data:oi,error:oie}=await db.from('order_items').select('order_id,quantity,is_market_price,menu_items(name,is_market_price)').in('order_id',orderIds);
+    const{data:oi,error:oie}=await db.from('order_items').select('id,order_id,quantity,unit_price,is_market_price,market_price_amount,menu_items(name,is_market_price)').in('order_id',orderIds);
     if(oie)return toast('讀取品項統計失敗：'+oie.message);
     for(const row of (oi||[])){
       const name=row.menu_items?.name;
@@ -259,29 +259,85 @@ async function loadOverview(){
       const isMarket=!!(row.is_market_price||row.menu_items?.is_market_price);
       const displayName=name+(isMarket?'（時價）':'');
       normalizedOrders.add(row.order_id);
-      if(isMarket)marketOrders.add(row.order_id);
+      if(isMarket){
+        if(!marketByOrder.has(row.order_id))marketByOrder.set(row.order_id,[]);
+        marketByOrder.get(row.order_id).push(row);
+        if(row.market_price_amount==null)unresolvedOrders.add(row.order_id);
+      }
       itemCounts.set(displayName,(itemCounts.get(displayName)||0)+Number(row.quantity||1));
     }
   }
   for(const o of list){
-    if(String(o.item_name||'').includes('（時價）'))marketOrders.add(o.id);
-    if(normalizedOrders.has(o.id))continue;
-    const parts=String(o.item_name||'').split(/[、,，]/).map(x=>x.trim()).filter(Boolean);
-    for(const raw of parts){
-      const m=raw.match(/^(.*?)(?:\s*[×xX]\s*(\d+))?$/);
-      const name=(m?.[1]||raw).trim(),qty=Number(m?.[2]||1);
-      if(name)itemCounts.set(name,(itemCounts.get(name)||0)+qty);
+    if(!normalizedOrders.has(o.id)){
+      if(String(o.item_name||'').includes('（時價）'))unresolvedOrders.add(o.id);
+      const parts=String(o.item_name||'').split(/[、,，]/).map(x=>x.trim()).filter(Boolean);
+      for(const raw of parts){
+        const m=raw.match(/^(.*?)(?:\s*[×xX]\s*(\d+))?$/);
+        const name=(m?.[1]||raw).trim(),qty=Number(m?.[2]||1);
+        if(name)itemCounts.set(name,(itemCounts.get(name)||0)+qty);
+      }
     }
   }
-  $('statTotal').textContent=money(total)+(marketOrders.size?' ＋ 時價':'');
+  $('statTotal').textContent=money(total)+(unresolvedOrders.size?' ＋ 時價':'');
   const itemRows=[...itemCounts.entries()].sort((a,b)=>b[1]-a[1]||a[0].localeCompare(b[0],'zh-Hant'));
   $('itemStats').innerHTML='<div class="item-stats-head"><h3>品項統計</h3><span>'+itemRows.reduce((a,x)=>a+x[1],0)+' 份</span></div>'+
     (itemRows.length?'<div class="item-stats-table">'+itemRows.map(([name,qty])=>'<div class="item-stat-row"><span>'+esc(name)+(name.includes('（時價）')?' <em class="market-badge">時價</em>':'')+'</span><b>'+qty+' 份</b></div>').join('')+'</div>':'<div class="loading">目前沒有品項</div>');
 
   const bySeat=new Map();for(const o of list){const st=students.find(s=>s.id===o.student_id),seat=st?.seat_number||Number(o.student_name);if(seat)bySeat.set(seat,{...o,name:st?.name||''})}
   const seats=[...Array.from({length:35},(_,i)=>i+1),99];
-  $('seatPayments').innerHTML='<div class="seat-grid">'+seats.map(n=>{const o=bySeat.get(n),st=students.find(s=>s.seat_number===n);return '<div class="seat-card '+(!o?'seat-empty':o.paid?'seat-paid':'seat-unpaid')+'"><b>'+n+'號'+(st?.name?' '+esc(st.name):'')+'</b><span>'+(!o?'未訂':o.paid?'✓ 已付款':'未付款')+'</span>'+(o?'<strong>'+esc(o.item_name)+' · '+money(o.unit_price)+(marketOrders.has(o.id)?' ＋ 時價':'')+'</strong><small>'+esc(o.note||'')+'</small><div><button class="small-btn" onclick="togglePaid('+o.id+','+(!o.paid)+')">'+(o.paid?'改未付':'標記付款')+'</button> <button class="small-btn danger" onclick="deleteOrder('+o.id+')">刪除</button></div>':'')+'</div>'}).join('')+'</div>';
+  $('seatPayments').innerHTML='<div class="seat-grid">'+seats.map(n=>{
+    const o=bySeat.get(n),st=students.find(s=>s.seat_number===n),hasMarket=o&&marketByOrder.has(o.id),unresolved=o&&unresolvedOrders.has(o.id);
+    return '<div class="seat-card '+(!o?'seat-empty':o.paid?'seat-paid':'seat-unpaid')+'"><b>'+n+'號'+(st?.name?' '+esc(st.name):'')+'</b><span>'+(!o?'未訂':o.paid?'✓ 已付款':'未付款')+'</span>'+
+      (o?'<strong>'+esc(o.item_name)+' · '+money(o.unit_price)+(unresolved?' ＋ 時價':'')+'</strong><small>'+esc(o.note||'')+'</small><div>'+
+      (hasMarket?'<button class="small-btn market-btn" onclick="openMarketPriceDialog('+o.id+','+n+')">設定時價</button> ':'')+
+      '<button class="small-btn" onclick="togglePaid('+o.id+','+(!o.paid)+')">'+(o.paid?'改未付':'標記付款')+'</button> <button class="small-btn danger" onclick="deleteOrder('+o.id+')">刪除</button></div>':'')+'</div>';
+  }).join('')+'</div>';
 }
+async function openMarketPriceDialog(orderId,seat){
+  editingMarketOrderId=orderId;
+  $('marketPriceSeat').textContent=seat+'號訂單';
+  const{data,error}=await db.from('order_items')
+    .select('id,quantity,unit_price,is_market_price,market_price_amount,menu_items(name)')
+    .eq('order_id',orderId)
+    .order('id');
+  if(error)return toast('讀取時價品項失敗：'+error.message);
+  const rows=data||[];
+  marketOrderItems=rows.filter(x=>x.is_market_price);
+  marketFixedTotal=rows.filter(x=>!x.is_market_price).reduce((s,x)=>s+Number(x.unit_price||0)*Number(x.quantity||1),0);
+  if(!marketOrderItems.length)return toast('這張訂單沒有時價品項');
+  $('marketPriceRows').innerHTML=marketOrderItems.map(x=>
+    '<label class="market-price-row"><span><b>'+esc(x.menu_items?.name||'時價品項')+'</b><small>數量 '+Number(x.quantity||1)+'</small></span>'+
+    '<input type="number" min="0" max="10000" step="1" data-market-id="'+x.id+'" value="'+(x.market_price_amount==null?'':Number(x.market_price_amount))+'" placeholder="每份實際金額"></label>'
+  ).join('');
+  $('marketPriceRows').querySelectorAll('input').forEach(el=>el.addEventListener('input',updateMarketPricePreview));
+  updateMarketPricePreview();
+  $('marketPriceDialog').showModal();
+}
+function updateMarketPricePreview(){
+  let total=marketFixedTotal,hasBlank=false;
+  for(const row of marketOrderItems){
+    const input=$('marketPriceRows').querySelector('[data-market-id="'+row.id+'"]');
+    const raw=input?.value?.trim()||'';
+    if(!raw){hasBlank=true;continue}
+    total+=Number(raw||0)*Number(row.quantity||1);
+  }
+  $('marketPricePreview').textContent=money(total)+(hasBlank?' ＋ 尚未設定時價':'');
+}
+$('marketPriceForm').addEventListener('submit',async e=>{
+  e.preventDefault();if(!editingMarketOrderId)return;
+  const prices=marketOrderItems.map(row=>{
+    const input=$('marketPriceRows').querySelector('[data-market-id="'+row.id+'"]');
+    const raw=input?.value?.trim()||'';
+    return {order_item_id:row.id,amount:raw===''?null:Number(raw)};
+  });
+  if(prices.some(x=>x.amount!=null&&(!Number.isInteger(x.amount)||x.amount<0||x.amount>10000)))return toast('時價金額格式不正確');
+  const b=e.currentTarget.querySelector('button[type="submit"]');b.disabled=true;b.textContent='儲存中…';
+  const{error}=await db.rpc('set_class_lunch_market_prices',{p_order_id:editingMarketOrderId,p_prices:prices});
+  b.disabled=false;b.textContent='儲存時價';
+  if(error)return toast('時價更新失敗：'+error.message);
+  $('marketPriceDialog').close();toast('時價已更新');await loadOverview();
+});
+
 async function togglePaid(id,n){const{error}=await db.from('orders').update({paid:n}).eq('id',id);if(error)return toast(error.message);toast(n?'已付款':'已改未付款');loadOverview()}
 async function deleteOrder(id){if(!confirm('確定刪除這筆訂單？'))return;const{error}=await db.from('orders').delete().eq('id',id);if(error)return toast(error.message);toast('已刪除');loadOverview()}
 
