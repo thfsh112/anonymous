@@ -2,12 +2,27 @@
 <html lang="zh-Hant">
 <head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>班級訂飯 🍱</title><link rel="stylesheet" href="style.css?v=20261002-47">
+<title>班級訂飯 🍱</title><link rel="stylesheet" href="style.css?v=20261003-01">
 </head>
 <body>
-<header class="top">
-  <div><div class="eyebrow">CLASS LUNCH</div><h1>今天吃什麼？🍱</h1><p id="welcomeText">登入後查看開放中的訂餐。</p></div>
-  <div class="header-actions"><button id="accountBtn" class="ghost hidden" type="button">帳號設定</button><button id="logoutBtn" class="ghost hidden" type="button">登出</button><a class="admin-link" href="admin.html">管理</a></div>
+<header class="top hero">
+  <div class="hero-copy">
+    <div class="eyebrow">CLASS LUNCH</div>
+    <h1>今天吃什麼？<span class="hero-emoji">🍱</span></h1>
+    <p id="welcomeText">登入後查看開放中的訂餐。</p>
+  </div>
+  <div id="heroAccount" class="hero-account hidden">
+    <div class="hero-user">
+      <span class="hero-user-label">目前登入</span>
+      <strong id="heroIdentity">—</strong>
+    </div>
+    <div class="header-actions">
+      <button id="historyBtn" class="hero-action hidden" type="button">歷史訂單</button>
+      <button id="accountBtn" class="hero-action hidden" type="button">帳號設定</button>
+      <a id="adminLink" class="hero-action admin-link hidden" href="admin.html">管理</a>
+      <button id="logoutBtn" class="hero-action subtle hidden" type="button">登出</button>
+    </div>
+  </div>
 </header>
 <main>
 <section id="loginBox" class="panel login-panel">
@@ -32,7 +47,6 @@
 </section>
 
 <div id="studentApp" class="hidden">
-  <section class="student-card"><div><small>目前登入</small><strong id="studentIdentity"></strong></div></section>
   <section>
     <div class="section-head"><h2>開放中的訂餐</h2><span id="menuCount"></span></div>
     <label class="picker-label">選擇訂餐日期
@@ -60,6 +74,19 @@
   </form>
 </dialog>
 
+<dialog id="historyDialog" class="form-dialog history-dialog">
+  <div class="history-shell">
+    <div class="dialog-head"><div><small>MY ORDERS</small><h2>歷史訂單</h2></div><button type="button" class="close-dialog" data-close="historyDialog">×</button></div>
+    <div id="historyStats" class="history-stats">
+      <div><small>累計訂單</small><b id="historyCount">0</b></div>
+      <div><small>累計消費</small><b id="historyTotal">$0</b></div>
+      <div><small>已付款</small><b id="historyPaid">0</b></div>
+      <div><small>未付款</small><b id="historyUnpaid">0</b></div>
+    </div>
+    <div id="historyList" class="history-list"><div class="loading">載入中…</div></div>
+  </div>
+</dialog>
+
 <dialog id="accountDialog" class="form-dialog">
   <form id="passwordForm">
     <div class="dialog-head"><div><small>帳號設定</small><h2>修改密碼</h2></div><button type="button" class="close-dialog" data-close="accountDialog">×</button></div>
@@ -74,5 +101,5 @@
 <div id="toast" class="toast"></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>window.APP_CONFIG={supabaseUrl:"https://roynzxilxumfzzuezelg.supabase.co",publishableKey:"sb_publishable_nvmHzVjH7bZ8F9cnJYzKCg_PSPlhCXU"};</script>
-<script src="app.js?v=20261002-47"></script>
+<script src="app.js?v=20261003-01"></script>
 </body></html>
