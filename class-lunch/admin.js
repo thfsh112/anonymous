@@ -2,7 +2,6 @@ const{createClient}=supabase;
 const db=createClient(APP_CONFIG.supabaseUrl,APP_CONFIG.publishableKey,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true,storageKey:'class-lunch-admin-auth'}});
 const legacyDb=createClient(APP_CONFIG.supabaseUrl,APP_CONFIG.publishableKey,{auth:{persistSession:true,autoRefreshToken:false,detectSessionInUrl:false}});
 const ADMIN_USERNAME='tnfsh112';
-const ADMIN_EMAIL='marsmars1000507@gmail.com';
 let legacyAdminChecked=false;
 const $=id=>document.getElementById(id),money=n=>'$'+Number(n||0).toLocaleString('zh-TW');
 const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c]));
@@ -15,8 +14,10 @@ $('loginForm').addEventListener('submit',async e=>{
   const username=$('adminUsername').value.trim(),password=$('password').value;
   if(username!==ADMIN_USERNAME)return toast('帳號或密碼錯誤');
   localStorage.removeItem('class-lunch-admin-no-legacy-migrate');
-  const{error}=await db.auth.signInWithPassword({email:ADMIN_EMAIL,password});
-  if(error)return toast('帳號或密碼錯誤');
+  const{data,error}=await db.functions.invoke('class-lunch-admin-login',{body:{username,password}});
+  if(error||data?.error||!data?.access_token||!data?.refresh_token)return toast('帳號或密碼錯誤');
+  const{error:setError}=await db.auth.setSession({access_token:data.access_token,refresh_token:data.refresh_token});
+  if(setError)return toast('登入失敗：'+setError.message);
   $('password').value='';
   refresh();
 });
@@ -47,13 +48,19 @@ async function migrateLegacyAdminSession(){
   const{data:{session:current}}=await db.auth.getSession();
   if(current)return;
   const{data:{session:legacy}}=await legacyDb.auth.getSession();
-  if(!legacy||String(legacy.user?.email||'').toLowerCase()!==ADMIN_EMAIL.toLowerCase())return;
+  if(!legacy?.user?.email)return;
+  const{data:legacyAdmin}=await legacyDb.from('admin_users').select('email').eq('email',legacy.user.email).maybeSingle();
+  if(!legacyAdmin)return;
   await db.auth.setSession({access_token:legacy.access_token,refresh_token:legacy.refresh_token});
 }
 async function refresh(){
   await migrateLegacyAdminSession();
   const ok=await isAdmin();$('loginBox').classList.toggle('hidden',ok);$('adminApp').classList.toggle('hidden',!ok);$('loginStatus').textContent=ok?'已登入管理者':'登入後管理菜單、日期、學生與付款。';
   if(!ok){stopAdminRealtime();return}
+  if(localStorage.getItem('class-lunch-admin-password-v1')!=='done'){
+    const{error:pwError}=await db.auth.updateUser({password:ADMIN_USERNAME});
+    if(!pwError)localStorage.setItem('class-lunch-admin-password-v1','done');
+  }
   startAdminRealtime();
   $('sessionDate').value=today();
   await Promise.all([loadTemplates(),loadSessions(),loadStudents()]);
@@ -426,6 +433,7 @@ function startAdminRealtime(){
     .on('postgres_changes',{event:'*',schema:'public',table:'order_items'},()=>scheduleAdminRealtimeRefresh('orders'))
     .on('postgres_changes',{event:'*',schema:'public',table:'meal_sessions'},()=>scheduleAdminRealtimeRefresh('sessions'))
     .on('postgres_changes',{event:'*',schema:'public',table:'menu_items'},()=>scheduleAdminRealtimeRefresh('orders'))
+    .on('postgres_changes',{event:'*',schema:'public',table:'menu_templates'},()=>scheduleAdminRealtimeRefresh('sessions'))
     .subscribe();
 }
 function stopAdminRealtime(){
