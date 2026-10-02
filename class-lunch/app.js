@@ -1,14 +1,23 @@
 const{createClient}=supabase;
 const db=createClient(APP_CONFIG.supabaseUrl,APP_CONFIG.publishableKey,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}});
 const $=id=>document.getElementById(id);
-let student=null,sessions=[],orders=[];
+let student=null,sessions=[],orders=[],editingSessionId=null;
 const money=n=>'$'+Number(n||0).toLocaleString('zh-TW');
 const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c]));
 const today=()=>new Date().toLocaleDateString('en-CA');
-function toast(t){const e=$('toast');e.textContent=t;e.classList.add('show');setTimeout(()=>e.classList.remove('show'),2400)}
+function toast(t){const e=$('toast');e.textContent=t;e.classList.add('show');setTimeout(()=>e.classList.remove('show'),2600)}
 function fmtDate(v){const d=new Date(v+'T00:00:00');return d.toLocaleDateString('zh-TW',{month:'numeric',day:'numeric',weekday:'short'})}
 function fmtCutoff(v){if(!v)return'';return new Date(v).toLocaleString('zh-TW',{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'})}
 function expired(s){return !!s.cutoff_at&&new Date(s.cutoff_at).getTime()<=Date.now()}
+function countdown(s){
+  if(!s.cutoff_at)return '未設定截止時間';
+  const ms=new Date(s.cutoff_at).getTime()-Date.now();
+  if(ms<=0)return '已截止';
+  const mins=Math.floor(ms/60000),days=Math.floor(mins/1440),hrs=Math.floor((mins%1440)/60),m=mins%60;
+  if(days>0)return '剩餘 '+days+'天 '+hrs+'小時';
+  if(hrs>0)return '剩餘 '+hrs+'小時 '+m+'分';
+  return '即將截止 · 剩餘 '+Math.max(1,m)+'分';
+}
 function validSeat(seat){return Number.isInteger(seat)&&((seat>=1&&seat<=35)||seat===99)}
 function internalEmail(seat){return 'seat'+String(Number(seat)).padStart(2,'0')+'@class-lunch.example'}
 function authPassword(raw){return 'CLP:'+String(raw)+':2026'}
@@ -22,47 +31,61 @@ $('loginForm').addEventListener('submit',async e=>{
     if(initError||initData?.error)return toast('初始登入失敗：'+(initData?.detail||initData?.error||initError?.message||'未知錯誤'));
     if(initData?.access_token&&initData?.refresh_token){
       const{error:setError}=await db.auth.setSession({access_token:initData.access_token,refresh_token:initData.refresh_token});
-      if(setError)return toast('登入 session 建立失敗：'+setError.message);
-      $('passwordLogin').value='';
-      return refresh();
+      if(setError)return toast('登入失敗：'+setError.message);
+      $('passwordLogin').value='';return refresh();
     }
   }
   const{error}=await db.auth.signInWithPassword({email:internalEmail(seat),password:authPassword(raw)});
   if(error)return toast('座號或密碼錯誤');
-  $('passwordLogin').value='';
-  await refresh();
+  $('passwordLogin').value='';await refresh();
 });
+
 $('setupForm').addEventListener('submit',async e=>{
   e.preventDefault();
   const name=$('setupName').value.trim(),p1=$('setupPassword').value,p2=$('setupPassword2').value;
   if(!name)return toast('請輸入姓名');
   if(p1.length<4)return toast('新密碼至少 4 碼');
   if(p1!==p2)return toast('兩次密碼不一致');
-  const b=e.currentTarget.querySelector('button');b.disabled=true;b.textContent='設定中…';
+  const b=e.currentTarget.querySelector('button[type="submit"]');b.disabled=true;b.textContent='設定中…';
   const{data,error}=await db.functions.invoke('class-lunch-students',{body:{action:'self_setup',name,password:p1}});
   b.disabled=false;b.textContent='完成設定';
   if(error||data?.error)return toast('設定失敗：'+(data?.detail||data?.error||error.message));
   $('setupForm').reset();toast('設定完成');await refresh();
 });
+
 $('logoutBtn').addEventListener('click',async()=>{await db.auth.signOut();student=null;refresh()});
+$('accountBtn').addEventListener('click',()=>{$('passwordForm').reset();$('accountDialog').showModal()});
+document.querySelectorAll('[data-close]').forEach(b=>b.addEventListener('click',()=>$(b.dataset.close).close()));
+
+$('passwordForm').addEventListener('submit',async e=>{
+  e.preventDefault();
+  const p1=$('newPassword').value,p2=$('newPassword2').value;
+  if(p1.length<4)return toast('密碼至少 4 碼');
+  if(p1!==p2)return toast('兩次密碼不一致');
+  const b=e.currentTarget.querySelector('button[type="submit"]');b.disabled=true;
+  const{data,error}=await db.functions.invoke('class-lunch-students',{body:{action:'change_password',password:p1}});
+  b.disabled=false;
+  if(error||data?.error)return toast('修改失敗：'+(data?.detail||data?.error||error.message));
+  $('accountDialog').close();$('passwordForm').reset();toast('密碼已更新');
+});
 
 async function refresh(){
   const{data:{user}}=await db.auth.getUser();
   if(!user){
-    $('loginBox').classList.remove('hidden');$('setupBox').classList.add('hidden');$('studentApp').classList.add('hidden');$('logoutBtn').classList.add('hidden');
+    $('loginBox').classList.remove('hidden');$('setupBox').classList.add('hidden');$('studentApp').classList.add('hidden');$('logoutBtn').classList.add('hidden');$('accountBtn').classList.add('hidden');
     $('welcomeText').textContent='登入後查看開放中的訂餐。';return;
   }
   const{data:s,error}=await db.from('students').select('id,seat_number,name,active,must_setup').eq('auth_user_id',user.id).maybeSingle();
   if(error||!s||!s.active){await db.auth.signOut();toast('此學生帳號目前無法使用');return refresh()}
   student=s;$('logoutBtn').classList.remove('hidden');$('loginBox').classList.add('hidden');
   if(s.must_setup&&s.seat_number!==99){
-    $('studentApp').classList.add('hidden');$('setupBox').classList.remove('hidden');$('welcomeText').textContent=s.seat_number+'號第一次登入設定';
-    return;
+    $('accountBtn').classList.add('hidden');$('studentApp').classList.add('hidden');$('setupBox').classList.remove('hidden');$('welcomeText').textContent=s.seat_number+'號第一次登入設定';return;
   }
-  $('setupBox').classList.add('hidden');$('studentApp').classList.remove('hidden');
+  $('accountBtn').classList.remove('hidden');$('setupBox').classList.add('hidden');$('studentApp').classList.remove('hidden');
   $('studentIdentity').textContent=s.seat_number+'號 '+(s.name||'');$('welcomeText').textContent='歡迎，'+(s.name||s.seat_number+'號')+'。';
   await loadSessions();
 }
+
 async function loadSessions(){
   const [{data:ss,error:se},{data:os,error:oe}]=await Promise.all([
     db.from('meal_sessions').select('id,meal_date,cutoff_at,is_active,menu_template_id,menu_templates(id,name,image_url,active)').eq('is_active',true).gte('meal_date',today()).order('meal_date'),
@@ -70,53 +93,47 @@ async function loadSessions(){
   ]);
   if(se||oe)return toast((se||oe).message);
   sessions=(ss||[]).filter(x=>x.menu_templates?.active!==false);orders=os||[];$('menuCount').textContent=sessions.length+' 份';
-  renderSessionPicker();
-  renderSessions();
+  renderSessionPicker();renderSessions();
 }
 function renderSessionPicker(){
-  const sel=$('sessionPicker');
-  if(!sel)return;
-  const previous=Number(sel.value);
+  const sel=$('sessionPicker'),previous=Number(sel.value);
   sel.innerHTML=sessions.map(s=>'<option value="'+s.id+'">'+esc(fmtDate(s.meal_date)+'｜'+(s.menu_templates?.name||'菜單'))+'</option>').join('');
-  if(previous&&sessions.some(s=>s.id===previous))sel.value=String(previous);
-  else if(sessions.length)sel.value=String(sessions[0].id);
-  sel.disabled=sessions.length===0;
-  sel.onchange=renderSessions;
+  if(previous&&sessions.some(s=>s.id===previous))sel.value=String(previous);else if(sessions.length)sel.value=String(sessions[0].id);
+  sel.disabled=sessions.length===0;sel.onchange=renderSessions;
 }
 function renderSessions(){
-  if(!sessions.length){
-    $('menus').innerHTML='<div class="loading">目前沒有開放中的訂餐。</div>';
-    return;
-  }
+  if(!sessions.length){$('menus').innerHTML='<div class="loading">目前沒有開放中的訂餐。</div>';return}
   const selectedId=Number($('sessionPicker')?.value)||sessions[0].id;
-  const s=sessions.find(x=>x.id===selectedId)||sessions[0];
-  const o=orders.find(x=>x.meal_session_id===s.id),closed=expired(s);
+  const s=sessions.find(x=>x.id===selectedId)||sessions[0],o=orders.find(x=>x.meal_session_id===s.id),closed=expired(s);
   const img=s.menu_templates?.image_url?'<div class="photo-button" data-image-url="'+esc(s.menu_templates.image_url)+'"><img class="menu-photo" src="'+esc(s.menu_templates.image_url)+'" alt="菜單"></div>':'<div class="menu-photo placeholder">🍱</div>';
-  let body='';
-  if(closed){body='<div class="closed-order">此訂餐已截止</div>'+(o?orderSummary(o,true):'')}
-  else if(o){body=orderSummary(o,false)}
-  else{body=orderForm(s,null)}
-  $('menus').innerHTML='<article class="menu-card">'+img+'<div class="menu-body"><h3>'+esc(s.menu_templates?.name||'菜單')+'</h3><div class="menu-meta">📅 '+esc(fmtDate(s.meal_date))+(s.cutoff_at?' · ⏰ 截止 '+esc(fmtCutoff(s.cutoff_at)):'')+'</div>'+body+'</div></article>';
+  let state='';
+  if(o){
+    state='<div class="order-status '+(o.paid?'paid':'pending')+'"><b>'+(o.paid?'✓ 已付款':'已訂餐 · 未付款')+'</b><div>'+esc(o.item_name)+' · '+money(o.unit_price)+'</div><small>'+esc(o.note||'無備註')+'</small></div>';
+    if(!closed&&!o.paid)state+='<div class="order-actions"><button class="primary" onclick="openOrderEditor('+s.id+')">修改訂單</button><button class="small-btn danger" onclick="cancelOrder('+s.id+')">取消訂單</button></div>';
+  }else if(closed){
+    state='<div class="closed-order">此訂餐已截止</div>';
+  }else{
+    state='<div class="order-status empty"><b>尚未訂餐</b><span>選好餐點後再送出即可。</span></div><button class="primary full-btn" onclick="openOrderEditor('+s.id+')">開始訂餐</button>';
+  }
+  const deadline='<div class="deadline '+(closed?'closed':'')+'"><span>截止：'+esc(fmtCutoff(s.cutoff_at)||'未設定')+'</span><b>'+esc(countdown(s))+'</b></div>';
+  $('menus').innerHTML='<article class="menu-card">'+img+'<div class="menu-body"><h3>'+esc(s.menu_templates?.name||'菜單')+'</h3><div class="menu-meta">📅 '+esc(fmtDate(s.meal_date))+'</div>'+deadline+state+'</div></article>';
 }
-function orderSummary(o,locked){
-  return '<div class="existing-order"><b>✓ 已登記'+(o.paid?' · 已付款':'')+'</b><div>品項：'+esc(o.item_name)+'</div><div>金額：'+money(o.unit_price)+'</div><div>備註：'+esc(o.note||'無')+'</div>'+
-  (!locked&&!o.paid?'<div class="order-actions"><button class="small-btn" onclick="editOrder('+o.meal_session_id+')">修改</button><button class="small-btn danger" onclick="cancelOrder('+o.meal_session_id+')">取消</button></div>':'')+'</div>';
+function openOrderEditor(sessionId){
+  const s=sessions.find(x=>x.id===sessionId),o=orders.find(x=>x.meal_session_id===sessionId);
+  if(!s||expired(s)||o?.paid)return;
+  editingSessionId=sessionId;$('orderDialogTitle').textContent=s.menu_templates?.name||'訂餐';$('orderDialogDate').textContent=fmtDate(s.meal_date);
+  $('orderItem').value=o?.item_name||'';$('orderAmount').value=o?.unit_price??'';$('orderNote').value=o?.note||'';
+  $('orderDialog').showModal();
 }
-function orderForm(s,o){
-  return '<form class="comment-form" onsubmit="saveOrder(event,'+s.id+')"><input id="item-'+s.id+'" maxlength="100" required placeholder="品項名稱" value="'+esc(o?.item_name||'')+'"><input id="amount-'+s.id+'" type="number" min="0" max="10000" step="1" required inputmode="numeric" placeholder="金額" value="'+esc(o?.unit_price??'')+'"><input id="note-'+s.id+'" maxlength="300" placeholder="備註（選填）" value="'+esc(o?.note||'')+'"><button class="primary" type="submit">'+(o?'儲存修改':'送出訂單')+'</button></form>';
-}
-function editOrder(sessionId){
-  const s=sessions.find(x=>x.id===sessionId),o=orders.find(x=>x.meal_session_id===sessionId);if(!s||!o||o.paid)return;
-  const card=[...document.querySelectorAll('.menu-card')].find(c=>c.innerHTML.includes('saveOrder(event,'+sessionId+')')||c.innerHTML.includes('editOrder('+sessionId+')'));
-  if(card){const old=card.querySelector('.existing-order');if(old)old.outerHTML=orderForm(s,o)}
-}
-async function saveOrder(e,sessionId){
-  e.preventDefault();const b=e.currentTarget.querySelector('button');b.disabled=true;b.textContent='儲存中…';
-  const item=$('item-'+sessionId).value.trim(),amount=Number($('amount-'+sessionId).value),note=$('note-'+sessionId).value.trim();
-  const{error}=await db.rpc('place_class_lunch_order_v2',{p_session_id:sessionId,p_item_name:item,p_unit_price:amount,p_note:note});
-  if(error){toast('送出失敗：'+error.message);b.disabled=false;b.textContent='送出訂單';return}
-  toast('訂單已儲存');await loadSessions();
-}
+$('orderDialogForm').addEventListener('submit',async e=>{
+  e.preventDefault();if(!editingSessionId)return;
+  const item=$('orderItem').value.trim(),amount=Number($('orderAmount').value),note=$('orderNote').value.trim(),b=e.currentTarget.querySelector('button[type="submit"]');
+  b.disabled=true;b.textContent='儲存中…';
+  const{error}=await db.rpc('place_class_lunch_order_v2',{p_session_id:editingSessionId,p_item_name:item,p_unit_price:amount,p_note:note});
+  b.disabled=false;b.textContent='儲存訂單';
+  if(error)return toast('送出失敗：'+error.message);
+  $('orderDialog').close();toast('訂單已儲存');await loadSessions();
+});
 async function cancelOrder(sessionId){
   if(!confirm('確定取消這筆訂單？'))return;
   const{error}=await db.rpc('cancel_class_lunch_order_v2',{p_session_id:sessionId});
@@ -126,4 +143,5 @@ async function cancelOrder(sessionId){
 function openImage(u){$('largeImage').src=u;$('imageModal').classList.remove('hidden');document.body.style.overflow='hidden'}
 function closeImage(e){if(e&&e.target!==$('imageModal')&&!e.target.classList.contains('close'))return;$('imageModal').classList.add('hidden');$('largeImage').src='';document.body.style.overflow=''}
 document.addEventListener('click',e=>{const p=e.target.closest('.photo-button');if(p)openImage(p.dataset.imageUrl)});
+setInterval(()=>{if(student&&sessions.length)renderSessions()},30000);
 db.auth.onAuthStateChange(()=>setTimeout(refresh,0));refresh();
