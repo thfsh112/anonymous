@@ -1,6 +1,6 @@
 const API=APP_CONFIG.supabaseUrl.replace(/\/$/,'')+'/rest/v1';
 const KEY=APP_CONFIG.publishableKey;
-const BASE_HEADERS={apikey:KEY,'Content-Type':'application/json'};
+const BASE_HEADERS={apikey:KEY,'Content-Type':'application/json',Accept:'application/json'};
 let menus=[];
 const seats=Array.from({length:35},(_,i)=>i+1).filter(n=>n!==14);
 const $=id=>document.getElementById(id);
@@ -19,10 +19,10 @@ async function api(path,options={}){
   const controller=new AbortController();
   const timer=setTimeout(()=>controller.abort(),12000);
   try{
+    // The current Supabase publishable key is sent through the apikey header.
+    // Do not send the publishable key as a Bearer JWT.
     const headers={...BASE_HEADERS,...(options.headers||{})};
-    // Supabase REST accepts the publishable key as apikey. Supplying it as
-    // Authorization too keeps this compatible with the current API setup.
-    if(!headers.Authorization)headers.Authorization='Bearer '+KEY;
+    delete headers.Authorization;
     const r=await fetch(API+path,{...options,headers,signal:controller.signal,cache:'no-store'});
     const text=await r.text();
     let body=null;
@@ -53,9 +53,6 @@ async function load(){
   if(!box)return;
   box.innerHTML='<div class="loading">載入中…</div>';
   try{
-    // Keep the main query simple. If an older/newer schema does not expose
-    // created_at for ordering, retry without that column instead of leaving
-    // the whole front-end stuck on the loading screen.
     const primary='/menus?select=*&is_active=eq.true&order=menu_date.asc%2Ccreated_at.desc';
     const fallback='/menus?select=*&is_active=eq.true&order=menu_date.asc';
     try{
