@@ -3,7 +3,7 @@ const db=createClient(APP_CONFIG.supabaseUrl,APP_CONFIG.publishableKey,{auth:{pe
 const $=id=>document.getElementById(id),money=n=>'$'+Number(n||0).toLocaleString('zh-TW');
 const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c]));
 const today=()=>new Date().toLocaleDateString('en-CA');
-let templates=[],sessions=[],students=[],editingTemplateId=null,editingSessionId=null,editingStudentId=null;
+let templates=[],sessions=[],students=[],editingTemplateId=null,editingSessionId=null,editingStudentId=null,menuEditorItems=[];
 function toast(t){const e=$('toast');e.textContent=t;e.classList.add('show');setTimeout(()=>e.classList.remove('show'),2600)}
 async function isAdmin(){const{data:{user}}=await db.auth.getUser();if(!user)return false;const{data}=await db.from('admin_users').select('email').eq('email',user.email).maybeSingle();return!!data}
 $('loginForm').addEventListener('submit',async e=>{e.preventDefault();const{error}=await db.auth.signInWithPassword({email:$('email').value.trim(),password:$('password').value});if(error)return toast('登入失敗');refresh()});
@@ -47,14 +47,75 @@ $('templateForm').addEventListener('submit',async e=>{
   e.target.reset();toast('菜單已存入');await loadTemplates();renderTemplateSelect();
 });
 async function uploadMenuImage(f){const ext=(f.name.split('.').pop()||'jpg').toLowerCase(),path='templates/'+crypto.randomUUID()+'.'+ext;const{error}=await db.storage.from('menu-images').upload(path,f,{contentType:f.type,upsert:false});if(error){toast('圖片上傳失敗：'+error.message);return null}return db.storage.from('menu-images').getPublicUrl(path).data.publicUrl}
-function openTemplateDialog(id){const t=templates.find(x=>x.id===id);if(!t)return;editingTemplateId=id;$('editTemplateName').value=t.name;$('editTemplateActive').checked=t.active;$('editTemplateImage').value='';$('templateDialog').showModal()}
+async function openTemplateDialog(id){
+  const t=templates.find(x=>x.id===id);if(!t)return;
+  editingTemplateId=id;
+  $('editTemplateName').value=t.name;$('editTemplateActive').checked=t.active;$('editTemplateImage').value='';$('ocrRawText').value='';$('ocrProgress').textContent='';
+  const{data,error}=await db.from('menu_items').select('id,category,name,price,active,sort_order').eq('menu_template_id',id).order('sort_order').order('id');
+  if(error)return toast('讀取品項失敗：'+error.message);
+  menuEditorItems=(data||[]).map(x=>({...x}));
+  renderMenuItemEditor();
+  $('templateDialog').showModal();
+}
+function renderMenuItemEditor(){
+  $('menuItemEditor').innerHTML=menuEditorItems.length?menuEditorItems.map((x,i)=>
+    '<div class="menu-item-row">'+
+    '<input data-k="category" data-i="'+i+'" value="'+esc(x.category||'')+'" placeholder="分類">'+
+    '<input data-k="name" data-i="'+i+'" value="'+esc(x.name||'')+'" placeholder="品項名稱">'+
+    '<input data-k="price" data-i="'+i+'" type="number" min="0" max="10000" value="'+Number(x.price||0)+'" placeholder="價格">'+
+    '<label class="mini-check"><input data-k="active" data-i="'+i+'" type="checkbox" '+(x.active!==false?'checked':'')+'>啟用</label>'+
+    '<button type="button" class="small-btn danger" onclick="removeMenuItemRow('+i+')">刪除</button>'+
+    '</div>'
+  ).join(''):'<div class="hint">尚無品項，可按「辨識菜單」或手動新增。</div>';
+  $('menuItemEditor').querySelectorAll('input[data-i]').forEach(el=>el.addEventListener('input',syncMenuEditorInput));
+}
+function syncMenuEditorInput(e){
+  const i=Number(e.target.dataset.i),k=e.target.dataset.k;if(!menuEditorItems[i])return;
+  menuEditorItems[i][k]=k==='price'?Number(e.target.value||0):k==='active'?e.target.checked:e.target.value;
+}
+function removeMenuItemRow(i){menuEditorItems.splice(i,1);renderMenuItemEditor()}
+$('addMenuItemRowBtn').addEventListener('click',()=>{menuEditorItems.push({category:'',name:'',price:0,active:true,sort_order:menuEditorItems.length});renderMenuItemEditor()});
+
+function parseOcrMenu(text){
+  const rows=[],lines=String(text||'').split(/\r?\n/).map(x=>x.replace(/[|｜]/g,' ').replace(/\s+/g,' ').trim()).filter(Boolean);
+  let category='';
+  for(const line of lines){
+    const cleaned=line.replace(/[＄$]/g,'').trim();
+    const m=cleaned.match(/^(.*?)[\s·.…:\-]*(\d{2,4})\s*(?:元)?$/);
+    if(m&&m[1].trim().length>=1){
+      const name=m[1].replace(/[：:]+$/,'').trim();
+      const price=Number(m[2]);
+      if(price>=0&&price<=10000)rows.push({category,name,price,active:true,sort_order:rows.length});
+    }else if(cleaned.length<=18&&!/\d/.test(cleaned)){
+      category=cleaned.replace(/[：:]/g,'').trim();
+    }
+  }
+  return rows;
+}
+$('ocrMenuBtn').addEventListener('click',async()=>{
+  const t=templates.find(x=>x.id===editingTemplateId);if(!t?.image_url)return toast('這份菜單沒有圖片');
+  if(!window.Tesseract)return toast('OCR 元件尚未載入，請重新整理後再試');
+  const b=$('ocrMenuBtn');b.disabled=true;b.textContent='辨識中…';$('ocrProgress').textContent='準備辨識繁體中文…';
+  try{
+    const result=await Tesseract.recognize(t.image_url,'chi_tra+eng',{logger:m=>{if(m.status==='recognizing text')$('ocrProgress').textContent='辨識中 '+Math.round((m.progress||0)*100)+'%';else if(m.status)$('ocrProgress').textContent=m.status;}});
+    const text=result?.data?.text||'';$('ocrRawText').value=text;
+    const parsed=parseOcrMenu(text);
+    if(parsed.length){menuEditorItems=parsed;renderMenuItemEditor();toast('辨識到 '+parsed.length+' 個可能品項，請先校正')}
+    else toast('有抓到文字，但沒有自動拆出品項，請查看原始文字後手動新增');
+  }catch(err){toast('OCR 失敗：'+(err?.message||err))}
+  finally{b.disabled=false;b.textContent='辨識菜單';$('ocrProgress').textContent='';}
+});
 $('templateEditForm').addEventListener('submit',async e=>{
   e.preventDefault();const t=templates.find(x=>x.id===editingTemplateId);if(!t)return;
   const name=$('editTemplateName').value.trim();if(!name)return toast('菜單名稱不能空白');
   const patch={name,active:$('editTemplateActive').checked,updated_at:new Date().toISOString()},f=$('editTemplateImage').files[0];
   if(f){if(f.size>6*1024*1024)return toast('圖片請小於 6MB');const url=await uploadMenuImage(f);if(!url)return;patch.image_url=url}
   const{error}=await db.from('menu_templates').update(patch).eq('id',editingTemplateId);if(error)return toast(error.message);
-  $('templateDialog').close();toast('菜單已更新');await loadTemplates();renderTemplateSelect();await loadSessions();
+  const cleaned=menuEditorItems.map((x,i)=>({menu_template_id:editingTemplateId,category:String(x.category||'').trim(),name:String(x.name||'').trim(),price:Number(x.price||0),active:x.active!==false,sort_order:i})).filter(x=>x.name);
+  if(cleaned.some(x=>!Number.isInteger(x.price)||x.price<0||x.price>10000))return toast('品項價格格式不正確');
+  const del=await db.from('menu_items').delete().eq('menu_template_id',editingTemplateId);if(del.error)return toast('品項更新失敗：'+del.error.message);
+  if(cleaned.length){const ins=await db.from('menu_items').insert(cleaned);if(ins.error)return toast('品項儲存失敗：'+ins.error.message)}
+  $('templateDialog').close();toast('菜單與品項已更新');await loadTemplates();renderTemplateSelect();await loadSessions();
 });
 
 $('sessionForm').addEventListener('submit',async e=>{
