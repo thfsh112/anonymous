@@ -86,12 +86,10 @@ function normalizeOcrLine(line){
 }
 function parseOcrMenu(text){
   const rows=[],seen=new Set(),lines=String(text||'').split(/\r?\n/).map(normalizeOcrLine).filter(Boolean);
-  let category='';
+  const ignored=/^(咖哩系列|特餐|鍋燒系列|丼飯|點心|炸物|點心炸物|外帶專用|菜單|樂品屋)$/;
   for(const line of lines){
-    const cat=line.replace(/[＊*#◆◇●○•·：:]/g,'').trim();
-    if(/(系列|特餐|點心|炸物|鍋燒|炒飯|炒麵|飯類|麵類|湯類|飲料|加點)/.test(cat)&&!/[0-9]/.test(cat)&&cat.length<=14){
-      category=cat;continue;
-    }
+    const plain=line.replace(/[＊*#◆◇●○•·：:]/g,'').trim();
+    if(ignored.test(plain))continue;
 
     const matches=[...line.matchAll(/(.*?)(?:\s|[.．·…,:：-])+(\d{2,3})(?=\s|元|$)/g)];
     if(!matches.length){
@@ -99,15 +97,18 @@ function parseOcrMenu(text){
       if(m)matches.push(m);
     }
     for(const m of matches){
-      let name=String(m[1]||'').replace(/^[^\u3400-\u9fffA-Za-z]+|[^\u3400-\u9fffA-Za-z0-9()（）+\-]+$/g,'').trim();
+      let name=String(m[1]||'').replace(/^[^\u3400-\u9fff]+|[^\u3400-\u9fff0-9()（）+\-]+$/g,'').trim();
       const price=Number(m[2]);
       const han=(name.match(/[\u3400-\u9fff]/g)||[]).length;
-      if(han<2||name.length>28||price<20||price>500)continue;
-      if(/[A-Za-z]{3,}/.test(name)&&han<4)continue;
+
+      // 菜名至少要有 2 個中文字；排除 OCR 英文亂碼與過長雜訊。
+      if(han<2||name.length>22||price<20||price>500)continue;
+      if(/[A-Za-z]/.test(name))continue;
+
       const key=name+'|'+price;
       if(seen.has(key))continue;
       seen.add(key);
-      rows.push({category,name,price,active:true,sort_order:rows.length});
+      rows.push({category:'',name,price,active:true,sort_order:rows.length});
     }
   }
   return rows;
@@ -120,10 +121,17 @@ async function loadOcrImage(url){
 }
 function buildOcrCrop(img,xRatio,wRatio){
   const sx=Math.max(0,Math.floor(img.naturalWidth*xRatio));
-  const sy=Math.floor(img.naturalHeight*0.025);
+
+  // 樂品屋這類直式菜單：
+  // 上方約 20% 是 Logo / 店家資訊 / 分類標題；
+  // 下方約 11% 是注意事項小字，全部排除。
+  const yStart=0.205;
+  const yEnd=0.89;
+  const sy=Math.floor(img.naturalHeight*yStart);
   const sw=Math.min(img.naturalWidth-sx,Math.floor(img.naturalWidth*wRatio));
-  const sh=Math.floor(img.naturalHeight*0.95);
-  const targetW=Math.min(1900,Math.max(1100,Math.round(sw*2.2)));
+  const sh=Math.floor(img.naturalHeight*(yEnd-yStart));
+
+  const targetW=Math.min(1900,Math.max(1200,Math.round(sw*2.5)));
   const scale=targetW/sw,targetH=Math.round(sh*scale);
   const canvas=document.createElement('canvas');canvas.width=targetW;canvas.height=targetH;
   const ctx=canvas.getContext('2d',{willReadFrequently:true});
@@ -141,8 +149,8 @@ function buildOcrCrop(img,xRatio,wRatio){
 async function recognizeMenuColumns(url){
   const img=await loadOcrImage(url);
   const parts=[
-    {name:'左欄',data:buildOcrCrop(img,0.03,0.50)},
-    {name:'右欄',data:buildOcrCrop(img,0.47,0.50)}
+    {name:'左欄',data:buildOcrCrop(img,0.035,0.465)},
+    {name:'右欄',data:buildOcrCrop(img,0.505,0.46)}
   ];
   const texts=[];
   const worker=await Tesseract.createWorker('chi_tra+eng',1,{
