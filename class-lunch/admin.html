@@ -1,6 +1,6 @@
 <!doctype html>
 <html lang="zh-Hant">
-<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><title>訂飯管理</title><link rel="stylesheet" href="style.css?v=20261002-30"></head>
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><title>訂飯管理</title><link rel="stylesheet" href="style.css?v=20261002-31"></head>
 <body>
 <header class="top"><div><div class="eyebrow">ADMIN</div><h1>訂飯管理</h1><p id="loginStatus">登入後管理菜單、日期、學生與付款。</p></div><a class="admin-link" href="index.html">回前台</a></header>
 <main>
@@ -13,33 +13,22 @@
     <button class="tab" data-tab="students">學生管理</button>
     <button class="tab ghost" id="logoutBtn">登出</button>
   </div>
-
-  <section id="tab-overview" class="tab-page">
-    <div class="panel">
-      <div class="section-head"><h2>訂單總覽</h2><select id="overviewSession"></select></div>
-      <div class="stats"><div class="stat"><small>已訂</small><b id="statOrders">0</b></div><div class="stat"><small>已付款</small><b id="statPaid">0</b></div><div class="stat"><small>未付款</small><b id="statUnpaidCount">0</b></div><div class="stat"><small>總金額</small><b id="statTotal">$0</b></div></div>
-      <div id="seatPayments"></div>
-    </div>
-  </section>
-
+  <section id="tab-overview" class="tab-page"><div class="panel"><div class="section-head"><h2>訂單總覽</h2><select id="overviewSession"></select></div><div class="stats"><div class="stat"><small>已訂</small><b id="statOrders">0</b></div><div class="stat"><small>已付款</small><b id="statPaid">0</b></div><div class="stat"><small>未付款</small><b id="statUnpaidCount">0</b></div><div class="stat"><small>總金額</small><b id="statTotal">$0</b></div></div><div id="seatPayments"></div></div></section>
   <section id="tab-sessions" class="tab-page hidden">
     <div class="panel"><h2>新增訂餐日期</h2><form id="sessionForm" class="admin-form-grid"><label>菜單<select id="sessionTemplate" required></select></label><label>供餐日期<input id="sessionDate" type="date" required></label><label>截止時間<input id="sessionCutoff" type="datetime-local"></label><label class="check-row"><input id="sessionActive" type="checkbox" checked> 開放</label><button class="primary" type="submit">新增日期</button></form></div>
     <div class="panel"><div class="section-head"><h2>日期列表</h2><span id="sessionCount"></span></div><div id="sessionList"></div></div>
   </section>
-
   <section id="tab-templates" class="tab-page hidden">
     <div class="panel"><h2>新增菜單</h2><form id="templateForm" class="admin-form-grid"><label>菜單名稱<input id="templateName" required placeholder="例如：鬍鬚張"></label><label>菜單圖片<input id="templateImage" type="file" accept="image/*" required></label><button class="primary" type="submit">存入菜單庫</button></form></div>
     <div class="panel"><div class="section-head"><h2>菜單庫</h2><span id="templateCount"></span></div><div id="templateList"></div></div>
   </section>
-
   <section id="tab-students" class="tab-page hidden">
-    <div class="panel"><h2>新增學生</h2><form id="studentForm" class="admin-form-grid"><label>座號<input id="studentSeat" type="number" min="1" max="35" required></label><label>名字<input id="studentName" maxlength="50" required></label><label>初始密碼<input id="studentPassword" type="password" minlength="6" required></label><button class="primary" type="submit">建立學生</button></form></div>
-    <div class="panel"><div class="section-head"><h2>學生名單</h2><span id="studentCount"></span></div><div id="studentList"></div></div>
+    <div class="panel"><div class="section-head"><div><h2>學生名單</h2><p class="hint">1～35 號初始密碼為 001～035；99 號密碼為 099，且不需要第一次設定。</p></div><span id="studentCount"></span></div><div id="studentList"></div></div>
   </section>
 </div>
 </main>
 <div id="toast" class="toast"></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>window.APP_CONFIG={supabaseUrl:"https://roynzxilxumfzzuezelg.supabase.co",publishableKey:"sb_publishable_nvmHzVjH7bZ8F9cnJYzKCg_PSPlhCXU"};</script>
-<script src="admin.js?v=20261002-30"></script>
+<script src="admin.js?v=20261002-31"></script>
 </body></html>
