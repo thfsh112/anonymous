@@ -2,7 +2,7 @@
 <html lang="zh-Hant">
 <head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>班級訂飯 🍱</title><link rel="stylesheet" href="style.css?v=20261002-41">
+<title>班級訂飯 🍱</title><link rel="stylesheet" href="style.css?v=20261002-44">
 </head>
 <body>
 <header class="top">
@@ -51,8 +51,9 @@
       <label>金額<input id="orderAmount" type="number" min="0" max="10000" step="1" inputmode="numeric"></label>
     </div>
     <div id="testOrderFields" class="hidden">
-      <label>選擇品項<select id="orderMenuItem"></select></label>
-      <div class="selected-price">價格：<b id="selectedItemPrice">$0</b></div>
+      <div class="item-editor-head"><b>選擇品項</b><span class="hint">選完會自動增加下一格</span></div>
+      <div id="testOrderRows"></div>
+      <div class="selected-price">合計：<b id="selectedItemPrice">$0</b></div>
     </div>
     <label>備註<input id="orderNote" maxlength="300" placeholder="選填"></label>
     <div class="dialog-actions"><button type="button" class="ghost" data-close="orderDialog">取消</button><button class="primary" type="submit">儲存訂單</button></div>
@@ -73,5 +74,5 @@
 <div id="toast" class="toast"></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>window.APP_CONFIG={supabaseUrl:"https://roynzxilxumfzzuezelg.supabase.co",publishableKey:"sb_publishable_nvmHzVjH7bZ8F9cnJYzKCg_PSPlhCXU"};</script>
-<script src="app.js?v=20261002-41"></script>
+<script src="app.js?v=20261002-44"></script>
 </body></html>
