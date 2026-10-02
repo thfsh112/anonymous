@@ -14,18 +14,36 @@ $('loginForm').addEventListener('submit',async e=>{
   e.preventDefault();
   const username=$('adminUsername').value.trim(),password=$('password').value;
   if(username!==ADMIN_USERNAME)return toast('帳號或密碼錯誤');
+  localStorage.removeItem('class-lunch-admin-no-legacy-migrate');
   const{error}=await db.auth.signInWithPassword({email:ADMIN_EMAIL,password});
   if(error)return toast('帳號或密碼錯誤');
   $('password').value='';
   refresh();
 });
-$('logoutBtn').addEventListener('click',async()=>{await db.auth.signOut();refresh()});
+$('logoutBtn').addEventListener('click',async()=>{
+  localStorage.setItem('class-lunch-admin-no-legacy-migrate','1');
+  await db.auth.signOut();
+  refresh();
+});
+$('adminAccountBtn').addEventListener('click',()=>{$('adminAccountForm').reset();$('adminAccountDialog').showModal()});
+$('adminAccountForm').addEventListener('submit',async e=>{
+  e.preventDefault();
+  const p1=$('adminNewPassword').value,p2=$('adminNewPassword2').value;
+  if(p1.length<6)return toast('管理密碼至少 6 碼');
+  if(p1!==p2)return toast('兩次密碼不一致');
+  const b=e.currentTarget.querySelector('button[type="submit"]');b.disabled=true;b.textContent='更新中…';
+  const{error}=await db.auth.updateUser({password:p1});
+  b.disabled=false;b.textContent='更新密碼';
+  if(error)return toast('密碼更新失敗：'+error.message);
+  $('adminAccountDialog').close();$('adminAccountForm').reset();toast('管理密碼已更新');
+});
 document.querySelectorAll('[data-close]').forEach(b=>b.addEventListener('click',()=>$(b.dataset.close).close()));
 document.querySelectorAll('.tab[data-tab]').forEach(b=>b.addEventListener('click',async()=>{document.querySelectorAll('.tab[data-tab]').forEach(x=>x.classList.toggle('active',x===b));document.querySelectorAll('.tab-page').forEach(p=>p.classList.add('hidden'));$('tab-'+b.dataset.tab).classList.remove('hidden');if(b.dataset.tab==='logs')await loadLogs()}));
 
 async function migrateLegacyAdminSession(){
   if(legacyAdminChecked)return;
   legacyAdminChecked=true;
+  if(localStorage.getItem('class-lunch-admin-no-legacy-migrate')==='1')return;
   const{data:{session:current}}=await db.auth.getSession();
   if(current)return;
   const{data:{session:legacy}}=await legacyDb.auth.getSession();
