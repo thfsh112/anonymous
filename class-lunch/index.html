@@ -35,6 +35,11 @@
   <section class="student-card"><div><small>目前登入</small><strong id="studentIdentity"></strong></div></section>
   <section>
     <div class="section-head"><h2>開放中的訂餐</h2><span id="menuCount"></span></div>
+    <label>選擇訂餐日期
+      <select id="sessionPicker" disabled>
+        <option>載入中…</option>
+      </select>
+    </label>
     <div id="menus" class="menu-grid"><div class="loading">載入中…</div></div>
   </section>
 </div>
@@ -43,5 +48,5 @@
 <div id="toast" class="toast"></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>window.APP_CONFIG={supabaseUrl:"https://roynzxilxumfzzuezelg.supabase.co",publishableKey:"sb_publishable_nvmHzVjH7bZ8F9cnJYzKCg_PSPlhCXU"};</script>
-<script src="app.js?v=20261002-34"></script>
+<script src="app.js?v=20261002-35"></script>
 </body></html>
