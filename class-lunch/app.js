@@ -1,7 +1,7 @@
 const{createClient}=supabase;
 const db=createClient(APP_CONFIG.supabaseUrl,APP_CONFIG.publishableKey,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}});
 const $=id=>document.getElementById(id);
-let student=null,sessions=[],orders=[],menuItems=[],orderItemsByOrder={},testSelections=[],editingSessionId=null;
+let student=null,sessions=[],orders=[],menuItems=[],orderItemsByOrder={},testSelections=[],editingSessionId=null,realtimeChannel=null,realtimeTimer=null;
 const money=n=>'$'+Number(n||0).toLocaleString('zh-TW');
 const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c]));
 const today=()=>new Date().toLocaleDateString('en-CA');
@@ -72,12 +72,13 @@ $('passwordForm').addEventListener('submit',async e=>{
 async function refresh(){
   const{data:{user}}=await db.auth.getUser();
   if(!user){
+    stopStudentRealtime();
     $('loginBox').classList.remove('hidden');$('setupBox').classList.add('hidden');$('studentApp').classList.add('hidden');$('logoutBtn').classList.add('hidden');$('accountBtn').classList.add('hidden');
     $('welcomeText').textContent='登入後查看開放中的訂餐。';return;
   }
   const{data:s,error}=await db.from('students').select('id,seat_number,name,active,must_setup').eq('auth_user_id',user.id).maybeSingle();
   if(error||!s||!s.active){await db.auth.signOut();toast('此學生帳號目前無法使用');return refresh()}
-  student=s;$('logoutBtn').classList.remove('hidden');$('loginBox').classList.add('hidden');
+  student=s;startStudentRealtime();$('logoutBtn').classList.remove('hidden');$('loginBox').classList.add('hidden');
   if(s.must_setup&&s.seat_number!==99){
     $('accountBtn').classList.add('hidden');$('studentApp').classList.add('hidden');$('setupBox').classList.remove('hidden');$('welcomeText').textContent=s.seat_number+'號第一次登入設定';return;
   }
@@ -220,5 +221,22 @@ async function cancelOrder(sessionId){
 function openImage(u){$('largeImage').src=u;$('imageModal').classList.remove('hidden');document.body.style.overflow='hidden'}
 function closeImage(e){if(e&&e.target!==$('imageModal')&&!e.target.classList.contains('close'))return;$('imageModal').classList.add('hidden');$('largeImage').src='';document.body.style.overflow=''}
 document.addEventListener('click',e=>{const p=e.target.closest('.photo-button');if(p)openImage(p.dataset.imageUrl)});
+function scheduleStudentRealtimeRefresh(){
+  clearTimeout(realtimeTimer);
+  realtimeTimer=setTimeout(()=>{if(student)loadSessions()},350);
+}
+function startStudentRealtime(){
+  if(realtimeChannel)return;
+  realtimeChannel=db.channel('class-lunch-student-realtime')
+    .on('postgres_changes',{event:'*',schema:'public',table:'orders'},scheduleStudentRealtimeRefresh)
+    .on('postgres_changes',{event:'*',schema:'public',table:'order_items'},scheduleStudentRealtimeRefresh)
+    .on('postgres_changes',{event:'*',schema:'public',table:'meal_sessions'},scheduleStudentRealtimeRefresh)
+    .on('postgres_changes',{event:'*',schema:'public',table:'menu_items'},scheduleStudentRealtimeRefresh)
+    .subscribe();
+}
+function stopStudentRealtime(){
+  clearTimeout(realtimeTimer);
+  if(realtimeChannel){db.removeChannel(realtimeChannel);realtimeChannel=null}
+}
 setInterval(()=>{if(student&&sessions.length)renderSessions()},30000);
 db.auth.onAuthStateChange(()=>setTimeout(refresh,0));refresh();
