@@ -3,7 +3,7 @@ const db=createClient(APP_CONFIG.supabaseUrl,APP_CONFIG.publishableKey,{auth:{pe
 const $=id=>document.getElementById(id),money=n=>'$'+Number(n||0).toLocaleString('zh-TW');
 const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c]));
 const today=()=>new Date().toLocaleDateString('en-CA');
-let templates=[],sessions=[],students=[],editingTemplateId=null,editingSessionId=null,editingStudentId=null,menuEditorItems=[];
+let templates=[],sessions=[],students=[],editingTemplateId=null,editingSessionId=null,editingStudentId=null,menuEditorItems=[],realtimeChannel=null,realtimeTimer=null;
 function toast(t){const e=$('toast');e.textContent=t;e.classList.add('show');setTimeout(()=>e.classList.remove('show'),2600)}
 async function isAdmin(){const{data:{user}}=await db.auth.getUser();if(!user)return false;const{data}=await db.from('admin_users').select('email').eq('email',user.email).maybeSingle();return!!data}
 $('loginForm').addEventListener('submit',async e=>{e.preventDefault();const{error}=await db.auth.signInWithPassword({email:$('email').value.trim(),password:$('password').value});if(error)return toast('登入失敗');refresh()});
@@ -13,7 +13,8 @@ document.querySelectorAll('.tab[data-tab]').forEach(b=>b.addEventListener('click
 
 async function refresh(){
   const ok=await isAdmin();$('loginBox').classList.toggle('hidden',ok);$('adminApp').classList.toggle('hidden',!ok);$('loginStatus').textContent=ok?'已登入管理者':'登入後管理菜單、日期、學生與付款。';
-  if(!ok)return;
+  if(!ok){stopAdminRealtime();return}
+  startAdminRealtime();
   $('sessionDate').value=today();
   await Promise.all([loadTemplates(),loadSessions(),loadStudents()]);
   renderTemplateSelect();renderSessionList();renderStudentList();renderOverviewSelect();renderInitStatus();
@@ -304,4 +305,28 @@ async function loadLogs(){
   }).join(''):'<div class="loading">目前沒有操作紀錄</div>';
 }
 $('refreshLogsBtn').addEventListener('click',loadLogs);
+
+function scheduleAdminRealtimeRefresh(kind){
+  clearTimeout(realtimeTimer);
+  realtimeTimer=setTimeout(async()=>{
+    if(kind==='sessions'){
+      await loadSessions();
+    }else{
+      await loadOverview();
+    }
+  },350);
+}
+function startAdminRealtime(){
+  if(realtimeChannel)return;
+  realtimeChannel=db.channel('class-lunch-admin-realtime')
+    .on('postgres_changes',{event:'*',schema:'public',table:'orders'},()=>scheduleAdminRealtimeRefresh('orders'))
+    .on('postgres_changes',{event:'*',schema:'public',table:'order_items'},()=>scheduleAdminRealtimeRefresh('orders'))
+    .on('postgres_changes',{event:'*',schema:'public',table:'meal_sessions'},()=>scheduleAdminRealtimeRefresh('sessions'))
+    .on('postgres_changes',{event:'*',schema:'public',table:'menu_items'},()=>scheduleAdminRealtimeRefresh('orders'))
+    .subscribe();
+}
+function stopAdminRealtime(){
+  clearTimeout(realtimeTimer);
+  if(realtimeChannel){db.removeChannel(realtimeChannel);realtimeChannel=null}
+}
 db.auth.onAuthStateChange(()=>setTimeout(refresh,0));refresh();
