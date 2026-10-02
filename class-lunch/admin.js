@@ -1,17 +1,39 @@
 const{createClient}=supabase;
-const db=createClient(APP_CONFIG.supabaseUrl,APP_CONFIG.publishableKey,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}});
+const db=createClient(APP_CONFIG.supabaseUrl,APP_CONFIG.publishableKey,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true,storageKey:'class-lunch-admin-auth'}});
+const legacyDb=createClient(APP_CONFIG.supabaseUrl,APP_CONFIG.publishableKey,{auth:{persistSession:true,autoRefreshToken:false,detectSessionInUrl:false}});
+const ADMIN_USERNAME='tnfsh112';
+const ADMIN_EMAIL='marsmars1000507@gmail.com';
+let legacyAdminChecked=false;
 const $=id=>document.getElementById(id),money=n=>'$'+Number(n||0).toLocaleString('zh-TW');
 const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c]));
 const today=()=>new Date().toLocaleDateString('en-CA');
 let templates=[],sessions=[],students=[],editingTemplateId=null,editingSessionId=null,editingStudentId=null,menuEditorItems=[],editingMarketOrderId=null,marketOrderItems=[],marketFixedTotal=0,realtimeChannel=null,realtimeTimer=null;
 function toast(t){const e=$('toast');e.textContent=t;e.classList.add('show');setTimeout(()=>e.classList.remove('show'),2600)}
 async function isAdmin(){const{data:{user}}=await db.auth.getUser();if(!user)return false;const{data}=await db.from('admin_users').select('email').eq('email',user.email).maybeSingle();return!!data}
-$('loginForm').addEventListener('submit',async e=>{e.preventDefault();const{error}=await db.auth.signInWithPassword({email:$('email').value.trim(),password:$('password').value});if(error)return toast('登入失敗');refresh()});
+$('loginForm').addEventListener('submit',async e=>{
+  e.preventDefault();
+  const username=$('adminUsername').value.trim(),password=$('password').value;
+  if(username!==ADMIN_USERNAME)return toast('帳號或密碼錯誤');
+  const{error}=await db.auth.signInWithPassword({email:ADMIN_EMAIL,password});
+  if(error)return toast('帳號或密碼錯誤');
+  $('password').value='';
+  refresh();
+});
 $('logoutBtn').addEventListener('click',async()=>{await db.auth.signOut();refresh()});
 document.querySelectorAll('[data-close]').forEach(b=>b.addEventListener('click',()=>$(b.dataset.close).close()));
 document.querySelectorAll('.tab[data-tab]').forEach(b=>b.addEventListener('click',async()=>{document.querySelectorAll('.tab[data-tab]').forEach(x=>x.classList.toggle('active',x===b));document.querySelectorAll('.tab-page').forEach(p=>p.classList.add('hidden'));$('tab-'+b.dataset.tab).classList.remove('hidden');if(b.dataset.tab==='logs')await loadLogs()}));
 
+async function migrateLegacyAdminSession(){
+  if(legacyAdminChecked)return;
+  legacyAdminChecked=true;
+  const{data:{session:current}}=await db.auth.getSession();
+  if(current)return;
+  const{data:{session:legacy}}=await legacyDb.auth.getSession();
+  if(!legacy||String(legacy.user?.email||'').toLowerCase()!==ADMIN_EMAIL.toLowerCase())return;
+  await db.auth.setSession({access_token:legacy.access_token,refresh_token:legacy.refresh_token});
+}
 async function refresh(){
+  await migrateLegacyAdminSession();
   const ok=await isAdmin();$('loginBox').classList.toggle('hidden',ok);$('adminApp').classList.toggle('hidden',!ok);$('loginStatus').textContent=ok?'已登入管理者':'登入後管理菜單、日期、學生與付款。';
   if(!ok){stopAdminRealtime();return}
   startAdminRealtime();
