@@ -70,18 +70,33 @@ async function loadSessions(){
   ]);
   if(se||oe)return toast((se||oe).message);
   sessions=(ss||[]).filter(x=>x.menu_templates?.active!==false);orders=os||[];$('menuCount').textContent=sessions.length+' 份';
+  renderSessionPicker();
   renderSessions();
 }
+function renderSessionPicker(){
+  const sel=$('sessionPicker');
+  if(!sel)return;
+  const previous=Number(sel.value);
+  sel.innerHTML=sessions.map(s=>'<option value="'+s.id+'">'+esc(fmtDate(s.meal_date)+'｜'+(s.menu_templates?.name||'菜單'))+'</option>').join('');
+  if(previous&&sessions.some(s=>s.id===previous))sel.value=String(previous);
+  else if(sessions.length)sel.value=String(sessions[0].id);
+  sel.disabled=sessions.length===0;
+  sel.onchange=renderSessions;
+}
 function renderSessions(){
-  $('menus').innerHTML=sessions.length?sessions.map(s=>{
-    const o=orders.find(x=>x.meal_session_id===s.id),closed=expired(s);
-    const img=s.menu_templates?.image_url?'<div class="photo-button" data-image-url="'+esc(s.menu_templates.image_url)+'"><img class="menu-photo" src="'+esc(s.menu_templates.image_url)+'" alt="菜單"></div>':'<div class="menu-photo placeholder">🍱</div>';
-    let body='';
-    if(closed){body='<div class="closed-order">此訂餐已截止</div>'+(o?orderSummary(o,true):'')}
-    else if(o){body=orderSummary(o,false)}
-    else{body=orderForm(s,null)}
-    return '<article class="menu-card">'+img+'<div class="menu-body"><h3>'+esc(s.menu_templates?.name||'菜單')+'</h3><div class="menu-meta">📅 '+esc(fmtDate(s.meal_date))+(s.cutoff_at?' · ⏰ 截止 '+esc(fmtCutoff(s.cutoff_at)):'')+'</div>'+body+'</div></article>';
-  }).join(''):'<div class="loading">目前沒有開放中的訂餐。</div>';
+  if(!sessions.length){
+    $('menus').innerHTML='<div class="loading">目前沒有開放中的訂餐。</div>';
+    return;
+  }
+  const selectedId=Number($('sessionPicker')?.value)||sessions[0].id;
+  const s=sessions.find(x=>x.id===selectedId)||sessions[0];
+  const o=orders.find(x=>x.meal_session_id===s.id),closed=expired(s);
+  const img=s.menu_templates?.image_url?'<div class="photo-button" data-image-url="'+esc(s.menu_templates.image_url)+'"><img class="menu-photo" src="'+esc(s.menu_templates.image_url)+'" alt="菜單"></div>':'<div class="menu-photo placeholder">🍱</div>';
+  let body='';
+  if(closed){body='<div class="closed-order">此訂餐已截止</div>'+(o?orderSummary(o,true):'')}
+  else if(o){body=orderSummary(o,false)}
+  else{body=orderForm(s,null)}
+  $('menus').innerHTML='<article class="menu-card">'+img+'<div class="menu-body"><h3>'+esc(s.menu_templates?.name||'菜單')+'</h3><div class="menu-meta">📅 '+esc(fmtDate(s.meal_date))+(s.cutoff_at?' · ⏰ 截止 '+esc(fmtCutoff(s.cutoff_at)):'')+'</div>'+body+'</div></article>';
 }
 function orderSummary(o,locked){
   return '<div class="existing-order"><b>✓ 已登記'+(o.paid?' · 已付款':'')+'</b><div>品項：'+esc(o.item_name)+'</div><div>金額：'+money(o.unit_price)+'</div><div>備註：'+esc(o.note||'無')+'</div>'+
