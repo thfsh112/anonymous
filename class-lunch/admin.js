@@ -52,7 +52,7 @@ async function openTemplateDialog(id){
   const t=templates.find(x=>x.id===id);if(!t)return;
   editingTemplateId=id;
   $('editTemplateName').value=t.name;$('editTemplateActive').checked=t.active;$('editTemplateImage').value='';$('ocrRawText').value='';$('ocrProgress').textContent='';
-  const{data,error}=await db.from('menu_items').select('id,category,name,price,active,sort_order').eq('menu_template_id',id).order('sort_order').order('id');
+  const{data,error}=await db.from('menu_items').select('id,category,name,price,is_market_price,active,sort_order').eq('menu_template_id',id).order('sort_order').order('id');
   if(error)return toast('讀取品項失敗：'+error.message);
   menuEditorItems=(data||[]).map(x=>({...x}));
   renderMenuItemEditor();
@@ -63,7 +63,8 @@ function renderMenuItemEditor(){
     '<div class="menu-item-row">'+
     '<input data-k="category" data-i="'+i+'" value="'+esc(x.category||'')+'" placeholder="分類">'+
     '<input data-k="name" data-i="'+i+'" value="'+esc(x.name||'')+'" placeholder="品項名稱">'+
-    '<input data-k="price" data-i="'+i+'" type="number" min="0" max="10000" value="'+Number(x.price||0)+'" placeholder="價格">'+
+    '<input data-k="price" data-i="'+i+'" type="number" min="0" max="10000" value="'+Number(x.price||0)+'" placeholder="'+(x.is_market_price?'時價':'價格')+'" '+(x.is_market_price?'disabled':'')+'>'+
+    '<label class="mini-check"><input data-k="is_market_price" data-i="'+i+'" type="checkbox" '+(x.is_market_price?'checked':'')+'>時價</label>'+
     '<label class="mini-check"><input data-k="active" data-i="'+i+'" type="checkbox" '+(x.active!==false?'checked':'')+'>啟用</label>'+
     '<button type="button" class="small-btn danger" onclick="removeMenuItemRow('+i+')">刪除</button>'+
     '</div>'
@@ -72,10 +73,11 @@ function renderMenuItemEditor(){
 }
 function syncMenuEditorInput(e){
   const i=Number(e.target.dataset.i),k=e.target.dataset.k;if(!menuEditorItems[i])return;
-  menuEditorItems[i][k]=k==='price'?Number(e.target.value||0):k==='active'?e.target.checked:e.target.value;
+  menuEditorItems[i][k]=k==='price'?Number(e.target.value||0):(k==='active'||k==='is_market_price')?e.target.checked:e.target.value;
+  if(k==='is_market_price'){if(e.target.checked)menuEditorItems[i].price=0;renderMenuItemEditor()}
 }
 function removeMenuItemRow(i){menuEditorItems.splice(i,1);renderMenuItemEditor()}
-$('addMenuItemRowBtn').addEventListener('click',()=>{menuEditorItems.push({category:'',name:'',price:0,active:true,sort_order:menuEditorItems.length});renderMenuItemEditor()});
+$('addMenuItemRowBtn').addEventListener('click',()=>{menuEditorItems.push({category:'',name:'',price:0,is_market_price:false,active:true,sort_order:menuEditorItems.length});renderMenuItemEditor()});
 
 function normalizeOcrLine(line){
   return String(line||'')
@@ -198,7 +200,7 @@ $('templateEditForm').addEventListener('submit',async e=>{
   const patch={name,active:$('editTemplateActive').checked,updated_at:new Date().toISOString()},f=$('editTemplateImage').files[0];
   if(f){if(f.size>6*1024*1024)return toast('圖片請小於 6MB');const url=await uploadMenuImage(f);if(!url)return;patch.image_url=url}
   const{error}=await db.from('menu_templates').update(patch).eq('id',editingTemplateId);if(error)return toast(error.message);
-  const cleaned=menuEditorItems.map((x,i)=>({menu_template_id:editingTemplateId,category:String(x.category||'').trim(),name:String(x.name||'').trim(),price:Number(x.price||0),active:x.active!==false,sort_order:i})).filter(x=>x.name);
+  const cleaned=menuEditorItems.map((x,i)=>({menu_template_id:editingTemplateId,category:String(x.category||'').trim(),name:String(x.name||'').trim(),price:x.is_market_price?0:Number(x.price||0),is_market_price:!!x.is_market_price,active:x.active!==false,sort_order:i})).filter(x=>x.name);
   if(cleaned.some(x=>!Number.isInteger(x.price)||x.price<0||x.price>10000))return toast('品項價格格式不正確');
   const del=await db.from('menu_items').delete().eq('menu_template_id',editingTemplateId);if(del.error)return toast('品項更新失敗：'+del.error.message);
   if(cleaned.length){const ins=await db.from('menu_items').insert(cleaned);if(ins.error)return toast('品項儲存失敗：'+ins.error.message)}
@@ -245,20 +247,22 @@ async function loadOverview(){
   const{data:os,error}=await db.from('orders').select('id,student_id,student_name,item_name,unit_price,note,paid,quantity').or('meal_session_id.eq.'+id+',menu_id.eq.'+legacy);
   if(error)return toast(error.message);
   const list=os||[],paid=list.filter(o=>o.paid).length,total=list.reduce((a,o)=>a+Number(o.unit_price||0)*Number(o.quantity||1),0);
-  $('statOrders').textContent=list.length;$('statPaid').textContent=paid;$('statUnpaidCount').textContent=list.length-paid;$('statTotal').textContent=money(total);
+  $('statOrders').textContent=list.length;$('statPaid').textContent=paid;$('statUnpaidCount').textContent=list.length-paid;
 
-  const itemCounts=new Map(),normalizedOrders=new Set(),orderIds=list.map(o=>o.id);
+  const itemCounts=new Map(),normalizedOrders=new Set(),marketOrders=new Set(),orderIds=list.map(o=>o.id);
   if(orderIds.length){
-    const{data:oi,error:oie}=await db.from('order_items').select('order_id,quantity,menu_items(name)').in('order_id',orderIds);
+    const{data:oi,error:oie}=await db.from('order_items').select('order_id,quantity,is_market_price,menu_items(name,is_market_price)').in('order_id',orderIds);
     if(oie)return toast('讀取品項統計失敗：'+oie.message);
     for(const row of (oi||[])){
       const name=row.menu_items?.name;
       if(!name)continue;
       normalizedOrders.add(row.order_id);
+      if(row.is_market_price||row.menu_items?.is_market_price)marketOrders.add(row.order_id);
       itemCounts.set(name,(itemCounts.get(name)||0)+Number(row.quantity||1));
     }
   }
   for(const o of list){
+    if(String(o.item_name||'').includes('（時價）'))marketOrders.add(o.id);
     if(normalizedOrders.has(o.id))continue;
     const parts=String(o.item_name||'').split(/[、,，]/).map(x=>x.trim()).filter(Boolean);
     for(const raw of parts){
@@ -267,13 +271,14 @@ async function loadOverview(){
       if(name)itemCounts.set(name,(itemCounts.get(name)||0)+qty);
     }
   }
+  $('statTotal').textContent=money(total)+(marketOrders.size?' ＋ 時價':'');
   const itemRows=[...itemCounts.entries()].sort((a,b)=>b[1]-a[1]||a[0].localeCompare(b[0],'zh-Hant'));
   $('itemStats').innerHTML='<div class="item-stats-head"><h3>品項統計</h3><span>'+itemRows.reduce((a,x)=>a+x[1],0)+' 份</span></div>'+
     (itemRows.length?'<div class="item-stats-table">'+itemRows.map(([name,qty])=>'<div class="item-stat-row"><span>'+esc(name)+'</span><b>'+qty+' 份</b></div>').join('')+'</div>':'<div class="loading">目前沒有品項</div>');
 
   const bySeat=new Map();for(const o of list){const st=students.find(s=>s.id===o.student_id),seat=st?.seat_number||Number(o.student_name);if(seat)bySeat.set(seat,{...o,name:st?.name||''})}
   const seats=[...Array.from({length:35},(_,i)=>i+1),99];
-  $('seatPayments').innerHTML='<div class="seat-grid">'+seats.map(n=>{const o=bySeat.get(n),st=students.find(s=>s.seat_number===n);return '<div class="seat-card '+(!o?'seat-empty':o.paid?'seat-paid':'seat-unpaid')+'"><b>'+n+'號'+(st?.name?' '+esc(st.name):'')+'</b><span>'+(!o?'未訂':o.paid?'✓ 已付款':'未付款')+'</span>'+(o?'<strong>'+esc(o.item_name)+' · '+money(o.unit_price)+'</strong><small>'+esc(o.note||'')+'</small><div><button class="small-btn" onclick="togglePaid('+o.id+','+(!o.paid)+')">'+(o.paid?'改未付':'標記付款')+'</button> <button class="small-btn danger" onclick="deleteOrder('+o.id+')">刪除</button></div>':'')+'</div>'}).join('')+'</div>';
+  $('seatPayments').innerHTML='<div class="seat-grid">'+seats.map(n=>{const o=bySeat.get(n),st=students.find(s=>s.seat_number===n);return '<div class="seat-card '+(!o?'seat-empty':o.paid?'seat-paid':'seat-unpaid')+'"><b>'+n+'號'+(st?.name?' '+esc(st.name):'')+'</b><span>'+(!o?'未訂':o.paid?'✓ 已付款':'未付款')+'</span>'+(o?'<strong>'+esc(o.item_name)+' · '+money(o.unit_price)+(marketOrders.has(o.id)?' ＋ 時價':'')+'</strong>'<small>'+esc(o.note||'')+'</small><div><button class="small-btn" onclick="togglePaid('+o.id+','+(!o.paid)+')">'+(o.paid?'改未付':'標記付款')+'</button> <button class="small-btn danger" onclick="deleteOrder('+o.id+')">刪除</button></div>':'')+'</div>'}).join('')+'</div>';
 }
 async function togglePaid(id,n){const{error}=await db.from('orders').update({paid:n}).eq('id',id);if(error)return toast(error.message);toast(n?'已付款':'已改未付款');loadOverview()}
 async function deleteOrder(id){if(!confirm('確定刪除這筆訂單？'))return;const{error}=await db.from('orders').delete().eq('id',id);if(error)return toast(error.message);toast('已刪除');loadOverview()}
