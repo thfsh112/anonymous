@@ -17,6 +17,10 @@ $('loginForm').addEventListener('submit',async e=>{
   e.preventDefault();
   const seat=Number($('seatLogin').value),raw=$('passwordLogin').value;
   if(!validSeat(seat))return toast('座號不正確');
+  if(raw===String(seat).padStart(3,'0')){
+    const{data:initData,error:initError}=await db.functions.invoke('class-lunch-init-login',{body:{seat_number:seat,initial_code:raw}});
+    if(initError||initData?.error)return toast('初始帳號建立失敗');
+  }
   const{error}=await db.auth.signInWithPassword({email:internalEmail(seat),password:authPassword(raw)});
   if(error)return toast('座號或密碼錯誤');
   $('passwordLogin').value='';
