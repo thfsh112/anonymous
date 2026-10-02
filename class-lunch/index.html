@@ -46,8 +46,14 @@
 <dialog id="orderDialog" class="form-dialog">
   <form id="orderDialogForm">
     <div class="dialog-head"><div><small id="orderDialogDate"></small><h2 id="orderDialogTitle">訂餐</h2></div><button type="button" class="close-dialog" data-close="orderDialog">×</button></div>
-    <label>品項<input id="orderItem" maxlength="100" required placeholder="例如：豬肉丼飯"></label>
-    <label>金額<input id="orderAmount" type="number" min="0" max="10000" step="1" required inputmode="numeric"></label>
+    <div id="freeOrderFields">
+      <label>品項<input id="orderItem" maxlength="100" placeholder="例如：豬肉丼飯"></label>
+      <label>金額<input id="orderAmount" type="number" min="0" max="10000" step="1" inputmode="numeric"></label>
+    </div>
+    <div id="testOrderFields" class="hidden">
+      <label>選擇品項<select id="orderMenuItem"></select></label>
+      <div class="selected-price">價格：<b id="selectedItemPrice">$0</b></div>
+    </div>
     <label>備註<input id="orderNote" maxlength="300" placeholder="選填"></label>
     <div class="dialog-actions"><button type="button" class="ghost" data-close="orderDialog">取消</button><button class="primary" type="submit">儲存訂單</button></div>
   </form>
@@ -67,5 +73,5 @@
 <div id="toast" class="toast"></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>window.APP_CONFIG={supabaseUrl:"https://roynzxilxumfzzuezelg.supabase.co",publishableKey:"sb_publishable_nvmHzVjH7bZ8F9cnJYzKCg_PSPlhCXU"};</script>
-<script src="app.js?v=20261002-40"></script>
+<script src="app.js?v=20261002-41"></script>
 </body></html>
