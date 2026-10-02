@@ -96,13 +96,13 @@ async function loadSessions(){
   sessions=(ss||[]).filter(x=>x.menu_templates?.active!==false);orders=os||[];$('menuCount').textContent=sessions.length+' 份';
   if(sessions.length){
     const ids=[...new Set(sessions.map(s=>s.menu_template_id))];
-    const{data:mi,error:me}=await db.from('menu_items').select('id,menu_template_id,category,name,price,active,sort_order').in('menu_template_id',ids).eq('active',true).order('sort_order').order('id');
+    const{data:mi,error:me}=await db.from('menu_items').select('id,menu_template_id,category,name,price,is_market_price,active,sort_order').in('menu_template_id',ids).eq('active',true).order('sort_order').order('id');
     if(me)return toast('讀取菜單品項失敗：'+me.message);
     menuItems=mi||[];
     orderItemsByOrder={};
     const orderIds=orders.map(o=>o.id);
     if(orderIds.length){
-      const{data:oi,error:oie}=await db.from('order_items').select('order_id,menu_item_id,quantity,unit_price').in('order_id',orderIds).order('id');
+      const{data:oi,error:oie}=await db.from('order_items').select('order_id,menu_item_id,quantity,unit_price,is_market_price').in('order_id',orderIds).order('id');
       if(oie)return toast('讀取訂單品項失敗：'+oie.message);
       for(const row of (oi||[])){
         if(!orderItemsByOrder[row.order_id])orderItemsByOrder[row.order_id]=[];
@@ -125,7 +125,8 @@ function renderSessions(){
   const img=s.menu_templates?.image_url?'<div class="photo-button" data-image-url="'+esc(s.menu_templates.image_url)+'"><img class="menu-photo" src="'+esc(s.menu_templates.image_url)+'" alt="菜單"></div>':'<div class="menu-photo placeholder">🍱</div>';
   let state='';
   if(o){
-    state='<div class="order-status '+(o.paid?'paid':'pending')+'"><b>'+(o.paid?'✓ 已付款':'已訂餐 · 未付款')+'</b><div>'+esc(o.item_name)+' · '+money(o.unit_price)+'</div><small>'+esc(o.note||'無備註')+'</small></div>';
+    const hasMarket=(orderItemsByOrder[o.id]||[]).some(x=>x.is_market_price)||String(o.item_name||'').includes('（時價）');
+    state='<div class="order-status '+(o.paid?'paid':'pending')+'"><b>'+(o.paid?'✓ 已付款':'已訂餐 · 未付款')+'</b><div>'+esc(o.item_name)+' · '+money(o.unit_price)+(hasMarket?' ＋ 時價':'')+'</div><small>'+esc(o.note||'無備註')+'</small></div>';
     if(!closed&&!o.paid)state+='<div class="order-actions"><button class="primary" onclick="openOrderEditor('+s.id+')">修改訂單</button><button class="small-btn danger" onclick="cancelOrder('+s.id+')">取消訂單</button></div>';
   }else if(closed){
     state='<div class="closed-order">此訂餐已截止</div>';
@@ -146,16 +147,15 @@ function renderTestOrderRows(){
   if(testSelections.at(-1)!==''&&testSelections.length<20)testSelections.push('');
 
   $('testOrderRows').innerHTML=testSelections.map((v,i)=>{
-    const opts='<option value="">請選擇餐點</option>'+items.map(x=>'<option value="'+x.id+'" '+(String(x.id)===String(v)?'selected':'')+'>'+esc(x.name+'　'+money(x.price))+'</option>').join('');
+    const opts='<option value="">請選擇餐點</option>'+items.map(x=>'<option value="'+x.id+'" '+(String(x.id)===String(v)?'selected':'')+'>'+esc(x.name+'　'+(x.is_market_price?'時價':money(x.price)))+'</option>').join('');
     const removable=v!==''?'<button type="button" class="small-btn danger" onclick="removeTestOrderSelection('+i+')">移除</button>':'';
     return '<div class="test-order-row"><select onchange="updateTestOrderSelection('+i+',this.value)">'+opts+'</select>'+removable+'</div>';
   }).join('');
 
-  const total=testSelections.filter(Boolean).reduce((sum,id)=>{
-    const x=items.find(m=>String(m.id)===String(id));
-    return sum+Number(x?.price||0);
-  },0);
-  $('selectedItemPrice').textContent=money(total);
+  const chosen=testSelections.filter(Boolean).map(id=>items.find(m=>String(m.id)===String(id))).filter(Boolean);
+  const total=chosen.reduce((sum,x)=>sum+(x.is_market_price?0:Number(x.price||0)),0);
+  const hasMarket=chosen.some(x=>x.is_market_price);
+  $('selectedItemPrice').textContent=money(total)+(hasMarket?' ＋ 時價':'');
 }
 function updateTestOrderSelection(i,value){
   testSelections[i]=value;
