@@ -2,9 +2,9 @@
 <html lang="zh-Hant">
 <head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><title>訂飯管理</title><link rel="stylesheet" href="style.css?v=20261003-03"></head>
 <body>
-<header class="top"><div><div class="eyebrow">ADMIN</div><h1>訂飯管理</h1><p id="loginStatus">登入後管理菜單、日期、學生與付款。</p></div><a class="admin-link" href="index.html">回前台</a></header>
+<header class="top"><div><div class="eyebrow">ADMIN</div><h1>訂飯管理</h1><p id="loginStatus">登入後管理菜單、日期、學生與付款。</p></div><a class="admin-link" href="index.html">回首頁</a></header>
 <main>
-<section id="loginBox" class="panel login-panel"><h2>管理者登入</h2><form id="loginForm"><label>Email<input id="email" type="email" required></label><label>密碼<input id="password" type="password" required></label><button class="primary" type="submit">登入</button></form></section>
+<section id="loginBox" class="panel login-panel"><h2>管理者登入</h2><form id="loginForm"><label>帳號<input id="adminUsername" type="text" required autocomplete="username" placeholder="tnfsh112"></label><label>密碼<input id="password" type="password" required></label><button class="primary" type="submit">登入</button></form></section>
 <div id="adminApp" class="hidden">
   <div class="admin-tabs">
     <button class="tab active" data-tab="overview">訂單總覽</button>
@@ -93,5 +93,5 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
 <script>window.APP_CONFIG={supabaseUrl:"https://roynzxilxumfzzuezelg.supabase.co",publishableKey:"sb_publishable_nvmHzVjH7bZ8F9cnJYzKCg_PSPlhCXU"};</script>
-<script src="admin.js?v=20261003-03"></script>
+<script src="admin.js?v=20261003-04"></script>
 </body></html>
