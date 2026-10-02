@@ -1,7 +1,7 @@
 const{createClient}=supabase;
 const db=createClient(APP_CONFIG.supabaseUrl,APP_CONFIG.publishableKey,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}});
 const $=id=>document.getElementById(id);
-let student=null,sessions=[],orders=[],editingSessionId=null;
+let student=null,sessions=[],orders=[],menuItems=[],editingSessionId=null;
 const money=n=>'$'+Number(n||0).toLocaleString('zh-TW');
 const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c]));
 const today=()=>new Date().toLocaleDateString('en-CA');
@@ -93,6 +93,12 @@ async function loadSessions(){
   ]);
   if(se||oe)return toast((se||oe).message);
   sessions=(ss||[]).filter(x=>x.menu_templates?.active!==false);orders=os||[];$('menuCount').textContent=sessions.length+' 份';
+  if(student?.seat_number===99&&sessions.length){
+    const ids=[...new Set(sessions.map(s=>s.menu_template_id))];
+    const{data:mi,error:me}=await db.from('menu_items').select('id,menu_template_id,category,name,price,active,sort_order').in('menu_template_id',ids).eq('active',true).order('sort_order').order('id');
+    if(me)return toast('讀取菜單品項失敗：'+me.message);
+    menuItems=mi||[];
+  }else menuItems=[];
   renderSessionPicker();renderSessions();
 }
 function renderSessionPicker(){
@@ -121,15 +127,33 @@ function renderSessions(){
 function openOrderEditor(sessionId){
   const s=sessions.find(x=>x.id===sessionId),o=orders.find(x=>x.meal_session_id===sessionId);
   if(!s||expired(s)||o?.paid)return;
-  editingSessionId=sessionId;$('orderDialogTitle').textContent=s.menu_templates?.name||'訂餐';$('orderDialogDate').textContent=fmtDate(s.meal_date);
-  $('orderItem').value=o?.item_name||'';$('orderAmount').value=o?.unit_price??'';$('orderNote').value=o?.note||'';
+  editingSessionId=sessionId;$('orderDialogTitle').textContent=s.menu_templates?.name||'訂餐';$('orderDialogDate').textContent=fmtDate(s.meal_date);$('orderNote').value=o?.note||'';
+  const isTest=student?.seat_number===99;
+  $('freeOrderFields').classList.toggle('hidden',isTest);$('testOrderFields').classList.toggle('hidden',!isTest);
+  if(isTest){
+    const items=menuItems.filter(x=>x.menu_template_id===s.menu_template_id&&x.active!==false);
+    if(!items.length)return toast('這份菜單還沒有建立品項，請先到後台辨識／新增');
+    $('orderMenuItem').innerHTML=items.map(x=>'<option value="'+x.id+'">'+esc((x.category?x.category+'｜':'')+x.name+'　'+money(x.price))+'</option>').join('');
+    const chosen=items.find(x=>x.name===o?.item_name&&Number(x.price)===Number(o?.unit_price))||items[0];
+    $('orderMenuItem').value=String(chosen.id);$('selectedItemPrice').textContent=money(chosen.price);
+    $('orderMenuItem').onchange=()=>{const x=items.find(i=>String(i.id)===$('orderMenuItem').value);$('selectedItemPrice').textContent=money(x?.price||0)};
+  }else{
+    $('orderItem').value=o?.item_name||'';$('orderAmount').value=o?.unit_price??'';
+  }
   $('orderDialog').showModal();
 }
 $('orderDialogForm').addEventListener('submit',async e=>{
   e.preventDefault();if(!editingSessionId)return;
-  const item=$('orderItem').value.trim(),amount=Number($('orderAmount').value),note=$('orderNote').value.trim(),b=e.currentTarget.querySelector('button[type="submit"]');
+  const note=$('orderNote').value.trim(),b=e.currentTarget.querySelector('button[type="submit"]');
   b.disabled=true;b.textContent='儲存中…';
-  const{error}=await db.rpc('place_class_lunch_order_v2',{p_session_id:editingSessionId,p_item_name:item,p_unit_price:amount,p_note:note});
+  let error=null;
+  if(student?.seat_number===99){
+    const r=await db.rpc('place_class_lunch_order_v3',{p_session_id:editingSessionId,p_menu_item_id:Number($('orderMenuItem').value),p_note:note});error=r.error;
+  }else{
+    const item=$('orderItem').value.trim(),amount=Number($('orderAmount').value);
+    if(!item){b.disabled=false;b.textContent='儲存訂單';return toast('請輸入品項')}
+    const r=await db.rpc('place_class_lunch_order_v2',{p_session_id:editingSessionId,p_item_name:item,p_unit_price:amount,p_note:note});error=r.error;
+  }
   b.disabled=false;b.textContent='儲存訂單';
   if(error)return toast('送出失敗：'+error.message);
   $('orderDialog').close();toast('訂單已儲存');await loadSessions();
