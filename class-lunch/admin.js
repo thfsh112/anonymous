@@ -245,6 +245,31 @@ async function loadOverview(){
   if(error)return toast(error.message);
   const list=os||[],paid=list.filter(o=>o.paid).length,total=list.reduce((a,o)=>a+Number(o.unit_price||0)*Number(o.quantity||1),0);
   $('statOrders').textContent=list.length;$('statPaid').textContent=paid;$('statUnpaidCount').textContent=list.length-paid;$('statTotal').textContent=money(total);
+
+  const itemCounts=new Map(),normalizedOrders=new Set(),orderIds=list.map(o=>o.id);
+  if(orderIds.length){
+    const{data:oi,error:oie}=await db.from('order_items').select('order_id,quantity,menu_items(name)').in('order_id',orderIds);
+    if(oie)return toast('讀取品項統計失敗：'+oie.message);
+    for(const row of (oi||[])){
+      const name=row.menu_items?.name;
+      if(!name)continue;
+      normalizedOrders.add(row.order_id);
+      itemCounts.set(name,(itemCounts.get(name)||0)+Number(row.quantity||1));
+    }
+  }
+  for(const o of list){
+    if(normalizedOrders.has(o.id))continue;
+    const parts=String(o.item_name||'').split(/[、,，]/).map(x=>x.trim()).filter(Boolean);
+    for(const raw of parts){
+      const m=raw.match(/^(.*?)(?:\s*[×xX]\s*(\d+))?$/);
+      const name=(m?.[1]||raw).trim(),qty=Number(m?.[2]||1);
+      if(name)itemCounts.set(name,(itemCounts.get(name)||0)+qty);
+    }
+  }
+  const itemRows=[...itemCounts.entries()].sort((a,b)=>b[1]-a[1]||a[0].localeCompare(b[0],'zh-Hant'));
+  $('itemStats').innerHTML='<div class="item-stats-head"><h3>品項統計</h3><span>'+itemRows.reduce((a,x)=>a+x[1],0)+' 份</span></div>'+
+    (itemRows.length?'<div class="item-stats-table">'+itemRows.map(([name,qty])=>'<div class="item-stat-row"><span>'+esc(name)+'</span><b>'+qty+' 份</b></div>').join('')+'</div>':'<div class="loading">目前沒有品項</div>');
+
   const bySeat=new Map();for(const o of list){const st=students.find(s=>s.id===o.student_id),seat=st?.seat_number||Number(o.student_name);if(seat)bySeat.set(seat,{...o,name:st?.name||''})}
   const seats=[...Array.from({length:35},(_,i)=>i+1),99];
   $('seatPayments').innerHTML='<div class="seat-grid">'+seats.map(n=>{const o=bySeat.get(n),st=students.find(s=>s.seat_number===n);return '<div class="seat-card '+(!o?'seat-empty':o.paid?'seat-paid':'seat-unpaid')+'"><b>'+n+'號'+(st?.name?' '+esc(st.name):'')+'</b><span>'+(!o?'未訂':o.paid?'✓ 已付款':'未付款')+'</span>'+(o?'<strong>'+esc(o.item_name)+' · '+money(o.unit_price)+'</strong><small>'+esc(o.note||'')+'</small><div><button class="small-btn" onclick="togglePaid('+o.id+','+(!o.paid)+')">'+(o.paid?'改未付':'標記付款')+'</button> <button class="small-btn danger" onclick="deleteOrder('+o.id+')">刪除</button></div>':'')+'</div>'}).join('')+'</div>';
@@ -257,6 +282,9 @@ function logLabel(l){
   if(e==='orders'&&a==='insert')return '建立訂單';
   if(e==='orders'&&a==='delete')return '刪除訂單';
   if(e==='orders'&&a==='update')return '修改訂單／付款狀態';
+  if(e==='order_items'&&a==='insert')return '新增訂單品項';
+  if(e==='order_items'&&a==='update')return '修改訂單品項';
+  if(e==='order_items'&&a==='delete')return '刪除訂單品項';
   if(e==='meal_sessions'&&a==='insert')return '新增訂餐日期';
   if(e==='meal_sessions'&&a==='update')return '修改訂餐日期';
   if(e==='meal_sessions'&&a==='delete')return '刪除訂餐日期';
