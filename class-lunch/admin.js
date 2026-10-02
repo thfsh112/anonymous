@@ -76,32 +76,110 @@ function syncMenuEditorInput(e){
 function removeMenuItemRow(i){menuEditorItems.splice(i,1);renderMenuItemEditor()}
 $('addMenuItemRowBtn').addEventListener('click',()=>{menuEditorItems.push({category:'',name:'',price:0,active:true,sort_order:menuEditorItems.length});renderMenuItemEditor()});
 
+function normalizeOcrLine(line){
+  return String(line||'')
+    .replace(/[|｜]/g,' ')
+    .replace(/[—–_]/g,' ')
+    .replace(/[＄$]/g,'')
+    .replace(/\s+/g,' ')
+    .trim();
+}
 function parseOcrMenu(text){
-  const rows=[],lines=String(text||'').split(/\r?\n/).map(x=>x.replace(/[|｜]/g,' ').replace(/\s+/g,' ').trim()).filter(Boolean);
+  const rows=[],seen=new Set(),lines=String(text||'').split(/\r?\n/).map(normalizeOcrLine).filter(Boolean);
   let category='';
   for(const line of lines){
-    const cleaned=line.replace(/[＄$]/g,'').trim();
-    const m=cleaned.match(/^(.*?)[\s·.…:\-]*(\d{2,4})\s*(?:元)?$/);
-    if(m&&m[1].trim().length>=1){
-      const name=m[1].replace(/[：:]+$/,'').trim();
+    const cat=line.replace(/[＊*#◆◇●○•·：:]/g,'').trim();
+    if(/(系列|特餐|點心|炸物|鍋燒|炒飯|炒麵|飯類|麵類|湯類|飲料|加點)/.test(cat)&&!/[0-9]/.test(cat)&&cat.length<=14){
+      category=cat;continue;
+    }
+
+    const matches=[...line.matchAll(/(.*?)(?:\s|[.．·…,:：-])+(\d{2,3})(?=\s|元|$)/g)];
+    if(!matches.length){
+      const m=line.match(/^(.*?)(\d{2,3})\s*(?:元)?$/);
+      if(m)matches.push(m);
+    }
+    for(const m of matches){
+      let name=String(m[1]||'').replace(/^[^\u3400-\u9fffA-Za-z]+|[^\u3400-\u9fffA-Za-z0-9()（）+\-]+$/g,'').trim();
       const price=Number(m[2]);
-      if(price>=0&&price<=10000)rows.push({category,name,price,active:true,sort_order:rows.length});
-    }else if(cleaned.length<=18&&!/\d/.test(cleaned)){
-      category=cleaned.replace(/[：:]/g,'').trim();
+      const han=(name.match(/[\u3400-\u9fff]/g)||[]).length;
+      if(han<2||name.length>28||price<20||price>500)continue;
+      if(/[A-Za-z]{3,}/.test(name)&&han<4)continue;
+      const key=name+'|'+price;
+      if(seen.has(key))continue;
+      seen.add(key);
+      rows.push({category,name,price,active:true,sort_order:rows.length});
     }
   }
   return rows;
 }
+async function loadOcrImage(url){
+  return await new Promise((resolve,reject)=>{
+    const img=new Image();img.crossOrigin='anonymous';
+    img.onload=()=>resolve(img);img.onerror=()=>reject(new Error('菜單圖片載入失敗'));img.src=url+(url.includes('?')?'&':'?')+'ocr='+Date.now();
+  });
+}
+function buildOcrCrop(img,xRatio,wRatio){
+  const sx=Math.max(0,Math.floor(img.naturalWidth*xRatio));
+  const sy=Math.floor(img.naturalHeight*0.025);
+  const sw=Math.min(img.naturalWidth-sx,Math.floor(img.naturalWidth*wRatio));
+  const sh=Math.floor(img.naturalHeight*0.95);
+  const targetW=Math.min(1900,Math.max(1100,Math.round(sw*2.2)));
+  const scale=targetW/sw,targetH=Math.round(sh*scale);
+  const canvas=document.createElement('canvas');canvas.width=targetW;canvas.height=targetH;
+  const ctx=canvas.getContext('2d',{willReadFrequently:true});
+  ctx.drawImage(img,sx,sy,sw,sh,0,0,targetW,targetH);
+  const d=ctx.getImageData(0,0,targetW,targetH),p=d.data;
+  for(let i=0;i<p.length;i+=4){
+    const g=0.299*p[i]+0.587*p[i+1]+0.114*p[i+2];
+    let v=(g-128)*1.45+150;
+    v=Math.max(0,Math.min(255,v));
+    p[i]=p[i+1]=p[i+2]=v;
+  }
+  ctx.putImageData(d,0,0);
+  return canvas.toDataURL('image/jpeg',0.94);
+}
+async function recognizeMenuColumns(url){
+  const img=await loadOcrImage(url);
+  const parts=[
+    {name:'左欄',data:buildOcrCrop(img,0.03,0.50)},
+    {name:'右欄',data:buildOcrCrop(img,0.47,0.50)}
+  ];
+  const texts=[];
+  const worker=await Tesseract.createWorker('chi_tra+eng',1,{
+    logger:m=>{
+      if(m.status==='recognizing text')$('ocrProgress').textContent='辨識中 '+Math.round((m.progress||0)*100)+'%';
+      else if(m.status)$('ocrProgress').textContent=m.status;
+    }
+  });
+  try{
+    await worker.setParameters({
+      tessedit_pageseg_mode:'6',
+      preserve_interword_spaces:'1'
+    });
+    for(let i=0;i<parts.length;i++){
+      $('ocrProgress').textContent='正在辨識'+parts[i].name+'（'+(i+1)+'/2）';
+      const r=await worker.recognize(parts[i].data);
+      texts.push('【'+parts[i].name+'】\n'+(r?.data?.text||''));
+    }
+  }finally{
+    await worker.terminate();
+  }
+  return texts.join('\n');
+}
 $('ocrMenuBtn').addEventListener('click',async()=>{
   const t=templates.find(x=>x.id===editingTemplateId);if(!t?.image_url)return toast('這份菜單沒有圖片');
   if(!window.Tesseract)return toast('OCR 元件尚未載入，請重新整理後再試');
-  const b=$('ocrMenuBtn');b.disabled=true;b.textContent='辨識中…';$('ocrProgress').textContent='準備辨識繁體中文…';
+  const b=$('ocrMenuBtn');b.disabled=true;b.textContent='辨識中…';$('ocrProgress').textContent='正在放大並切成左右兩欄…';
   try{
-    const result=await Tesseract.recognize(t.image_url,'chi_tra+eng',{logger:m=>{if(m.status==='recognizing text')$('ocrProgress').textContent='辨識中 '+Math.round((m.progress||0)*100)+'%';else if(m.status)$('ocrProgress').textContent=m.status;}});
-    const text=result?.data?.text||'';$('ocrRawText').value=text;
+    const text=await recognizeMenuColumns(t.image_url);
+    $('ocrRawText').value=text;
     const parsed=parseOcrMenu(text);
-    if(parsed.length){menuEditorItems=parsed;renderMenuItemEditor();toast('辨識到 '+parsed.length+' 個可能品項，請先校正')}
-    else toast('有抓到文字，但沒有自動拆出品項，請查看原始文字後手動新增');
+    if(parsed.length>=3){
+      menuEditorItems=parsed;renderMenuItemEditor();
+      toast('辨識到 '+parsed.length+' 個可能品項，請檢查後再儲存');
+    }else{
+      toast('這次辨識可信品項太少，沒有覆蓋原本清單');
+    }
   }catch(err){toast('OCR 失敗：'+(err?.message||err))}
   finally{b.disabled=false;b.textContent='辨識菜單';$('ocrProgress').textContent='';}
 });
