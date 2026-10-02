@@ -278,6 +278,7 @@ function startStudentRealtime(){
     .on('postgres_changes',{event:'*',schema:'public',table:'order_items'},scheduleStudentRealtimeRefresh)
     .on('postgres_changes',{event:'*',schema:'public',table:'meal_sessions'},scheduleStudentRealtimeRefresh)
     .on('postgres_changes',{event:'*',schema:'public',table:'menu_items'},scheduleStudentRealtimeRefresh)
+    .on('postgres_changes',{event:'*',schema:'public',table:'menu_templates'},scheduleStudentRealtimeRefresh)
     .subscribe();
 }
 function stopStudentRealtime(){
