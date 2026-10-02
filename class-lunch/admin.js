@@ -63,7 +63,7 @@ async function toggleTemplate(id,n){const{error}=await db.from('menu_templates')
 async function toggleSession(id,n){const{error}=await db.from('meal_sessions').update({is_active:n,updated_at:new Date().toISOString()}).eq('id',id);if(error)return toast(error.message);await loadSessions()}
 async function resetPassword(id,seat){
   const suggested=seat===99?'099':String(seat).padStart(3,'0');
-  const p=prompt('輸入新密碼（至少 4 碼）',seat===99?suggested:'');if(p===null)return;if(p.length<4)return toast('密碼至少 4 碼');
+  const p=prompt('輸入新密碼（至少 4 碼）',seat===99?suggested:'');if(p===null)return;if(!(seat===99&&p==='099')&&p.length<4)return toast('密碼至少 4 碼（99 號可用 099）');
   const{data,error}=await db.functions.invoke('class-lunch-students',{body:{action:'reset_password',student_id:id,password:p}});
   if(error||data?.error)return toast('重設失敗：'+(data?.detail||data?.error||error.message));toast('密碼已重設'+(seat===99?'':'，下次登入需重新設定姓名與密碼'));await loadStudents()
 }
