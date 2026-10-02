@@ -12,6 +12,7 @@
     <button class="tab" data-tab="templates">菜單庫</button>
     <button class="tab" data-tab="students">學生管理</button>
     <button class="tab" data-tab="logs">操作紀錄</button>
+    <button class="tab ghost" id="adminAccountBtn" type="button">帳號設定</button>
     <button class="tab ghost" id="logoutBtn">登出</button>
   </div>
 
@@ -40,6 +41,16 @@
   </section>
 </div>
 </main>
+
+<dialog id="adminAccountDialog" class="form-dialog">
+  <form id="adminAccountForm">
+    <div class="dialog-head"><div><small>管理員帳號</small><h2>修改管理密碼</h2></div><button type="button" class="close-dialog" data-close="adminAccountDialog">×</button></div>
+    <p class="hint">登入帳號固定為 <b>tnfsh112</b>。新密碼只會送到 Supabase Auth，不會寫進網站程式碼。</p>
+    <label>新密碼<input id="adminNewPassword" type="password" minlength="6" maxlength="64" required autocomplete="new-password"></label>
+    <label>再次輸入<input id="adminNewPassword2" type="password" minlength="6" maxlength="64" required autocomplete="new-password"></label>
+    <div class="dialog-actions"><button type="button" class="ghost" data-close="adminAccountDialog">取消</button><button class="primary" type="submit">更新密碼</button></div>
+  </form>
+</dialog>
 
 <dialog id="templateDialog" class="form-dialog">
   <form id="templateEditForm">
@@ -93,5 +104,5 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
 <script>window.APP_CONFIG={supabaseUrl:"https://roynzxilxumfzzuezelg.supabase.co",publishableKey:"sb_publishable_nvmHzVjH7bZ8F9cnJYzKCg_PSPlhCXU"};</script>
-<script src="admin.js?v=20261003-04"></script>
+<script src="admin.js?v=20261003-05"></script>
 </body></html>
