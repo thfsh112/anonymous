@@ -2,12 +2,12 @@
 <html lang="zh-Hant">
 <head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>班級訂飯 🍱</title><link rel="stylesheet" href="style.css?v=20261002-31">
+<title>班級訂飯 🍱</title><link rel="stylesheet" href="style.css?v=20261002-40">
 </head>
 <body>
 <header class="top">
   <div><div class="eyebrow">CLASS LUNCH</div><h1>今天吃什麼？🍱</h1><p id="welcomeText">登入後查看開放中的訂餐。</p></div>
-  <div class="header-actions"><button id="logoutBtn" class="ghost hidden" type="button">登出</button><a class="admin-link" href="admin.html">管理</a></div>
+  <div class="header-actions"><button id="accountBtn" class="ghost hidden" type="button">帳號設定</button><button id="logoutBtn" class="ghost hidden" type="button">登出</button><a class="admin-link" href="admin.html">管理</a></div>
 </header>
 <main>
 <section id="loginBox" class="panel login-panel">
@@ -22,7 +22,7 @@
 
 <section id="setupBox" class="panel login-panel hidden">
   <h2>第一次登入設定</h2>
-  <p class="hint">請先設定姓名並更換密碼，完成後才能進入訂餐頁。</p>
+  <p class="hint">請先設定姓名並更換密碼。姓名完成設定後只能由管理員修改。</p>
   <form id="setupForm">
     <label>姓名<input id="setupName" maxlength="50" required autocomplete="name"></label>
     <label>新密碼<input id="setupPassword" type="password" minlength="4" maxlength="64" required autocomplete="new-password" placeholder="至少 4 碼"></label>
@@ -35,18 +35,37 @@
   <section class="student-card"><div><small>目前登入</small><strong id="studentIdentity"></strong></div></section>
   <section>
     <div class="section-head"><h2>開放中的訂餐</h2><span id="menuCount"></span></div>
-    <label>選擇訂餐日期
-      <select id="sessionPicker" disabled>
-        <option>載入中…</option>
-      </select>
+    <label class="picker-label">選擇訂餐日期
+      <select id="sessionPicker" disabled><option>載入中…</option></select>
     </label>
     <div id="menus" class="menu-grid"><div class="loading">載入中…</div></div>
   </section>
 </div>
 </main>
+
+<dialog id="orderDialog" class="form-dialog">
+  <form id="orderDialogForm">
+    <div class="dialog-head"><div><small id="orderDialogDate"></small><h2 id="orderDialogTitle">訂餐</h2></div><button type="button" class="close-dialog" data-close="orderDialog">×</button></div>
+    <label>品項<input id="orderItem" maxlength="100" required placeholder="例如：豬肉丼飯"></label>
+    <label>金額<input id="orderAmount" type="number" min="0" max="10000" step="1" required inputmode="numeric"></label>
+    <label>備註<input id="orderNote" maxlength="300" placeholder="選填"></label>
+    <div class="dialog-actions"><button type="button" class="ghost" data-close="orderDialog">取消</button><button class="primary" type="submit">儲存訂單</button></div>
+  </form>
+</dialog>
+
+<dialog id="accountDialog" class="form-dialog">
+  <form id="passwordForm">
+    <div class="dialog-head"><div><small>帳號設定</small><h2>修改密碼</h2></div><button type="button" class="close-dialog" data-close="accountDialog">×</button></div>
+    <p class="hint">座號與姓名不能自行修改；姓名如需更正請找管理員。</p>
+    <label>新密碼<input id="newPassword" type="password" minlength="4" maxlength="64" required autocomplete="new-password" placeholder="至少 4 碼"></label>
+    <label>再次輸入<input id="newPassword2" type="password" minlength="4" maxlength="64" required autocomplete="new-password"></label>
+    <div class="dialog-actions"><button type="button" class="ghost" data-close="accountDialog">取消</button><button class="primary" type="submit">更新密碼</button></div>
+  </form>
+</dialog>
+
 <div id="imageModal" class="modal hidden" onclick="closeImage(event)"><div class="image-viewer" onclick="event.stopPropagation()"><button type="button" class="close" onclick="closeImage()">×</button><img id="largeImage" alt="菜單大圖"></div></div>
 <div id="toast" class="toast"></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>window.APP_CONFIG={supabaseUrl:"https://roynzxilxumfzzuezelg.supabase.co",publishableKey:"sb_publishable_nvmHzVjH7bZ8F9cnJYzKCg_PSPlhCXU"};</script>
-<script src="app.js?v=20261002-35"></script>
+<script src="app.js?v=20261002-40"></script>
 </body></html>
