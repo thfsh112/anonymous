@@ -2,7 +2,7 @@
 <html lang="zh-Hant">
 <head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>班級訂飯 🍱</title><link rel="stylesheet" href="style.css?v=20261002-30">
+<title>班級訂飯 🍱</title><link rel="stylesheet" href="style.css?v=20261002-31">
 </head>
 <body>
 <header class="top">
@@ -13,11 +13,22 @@
 <section id="loginBox" class="panel login-panel">
   <h2>學生登入</h2>
   <form id="loginForm">
-    <label>座號<input id="seatLogin" type="number" min="1" max="35" inputmode="numeric" required placeholder="例如 3"></label>
+    <label>座號<input id="seatLogin" type="number" min="1" max="99" inputmode="numeric" required placeholder="例如 3"></label>
     <label>密碼<input id="passwordLogin" type="password" required autocomplete="current-password"></label>
     <button class="primary" type="submit">登入</button>
   </form>
-  <p class="hint">座號 14 不使用。若忘記密碼請找管理員重設。</p>
+  <p class="hint">第一次登入密碼為座號三位數，例如 1 號是 001。</p>
+</section>
+
+<section id="setupBox" class="panel login-panel hidden">
+  <h2>第一次登入設定</h2>
+  <p class="hint">請先設定姓名並更換密碼，完成後才能進入訂餐頁。</p>
+  <form id="setupForm">
+    <label>姓名<input id="setupName" maxlength="50" required autocomplete="name"></label>
+    <label>新密碼<input id="setupPassword" type="password" minlength="4" maxlength="64" required autocomplete="new-password" placeholder="至少 4 碼"></label>
+    <label>再次輸入新密碼<input id="setupPassword2" type="password" minlength="4" maxlength="64" required autocomplete="new-password"></label>
+    <button class="primary" type="submit">完成設定</button>
+  </form>
 </section>
 
 <div id="studentApp" class="hidden">
@@ -32,5 +43,5 @@
 <div id="toast" class="toast"></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>window.APP_CONFIG={supabaseUrl:"https://roynzxilxumfzzuezelg.supabase.co",publishableKey:"sb_publishable_nvmHzVjH7bZ8F9cnJYzKCg_PSPlhCXU"};</script>
-<script src="app.js?v=20261002-30"></script>
+<script src="app.js?v=20261002-31"></script>
 </body></html>
