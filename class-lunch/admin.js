@@ -1,3 +1,4 @@
+let latestOverviewCopyText='';
 const{createClient}=supabase;
 const db=createClient(APP_CONFIG.supabaseUrl,APP_CONFIG.publishableKey,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true,storageKey:'class-lunch-admin-auth'}});
 const legacyDb=createClient(APP_CONFIG.supabaseUrl,APP_CONFIG.publishableKey,{auth:{persistSession:true,autoRefreshToken:false,detectSessionInUrl:false}});
@@ -335,7 +336,18 @@ async function loadOverview(){
   }
   $('statTotal').textContent=money(total)+(unresolvedOrders.size?' ＋ 時價':'');
   const itemRows=[...itemCounts.entries()].sort((a,b)=>b[1]-a[1]||a[0].localeCompare(b[0],'zh-Hant'));
-  $('itemStats').innerHTML='<div class="item-stats-head"><h3>品項統計</h3><span>'+itemRows.reduce((a,x)=>a+x[1],0)+' 份</span></div>'+
+  const totalQty=itemRows.reduce((a,x)=>a+x[1],0);
+  const sessionLabel=[s?.meal_date,s?.menu_templates?.name||'菜單'].filter(Boolean).join(' ');
+  latestOverviewCopyText=[
+    '【'+sessionLabel+' 訂餐統計】',
+    ...(itemRows.length?itemRows.map(([name,qty])=>name+'：'+qty+'份'):['目前沒有品項']),
+    '────────',
+    '總份數：'+totalQty+'份',
+    '已訂：'+list.length+'人',
+    '已付款：'+paid+'人｜未付款：'+(list.length-paid)+'人',
+    '總金額：'+money(total)+(unresolvedOrders.size?' ＋ 時價':'')
+  ].join('\n');
+  $('itemStats').innerHTML='<div class="item-stats-head"><h3>品項統計</h3><div class="btnrow"><span>'+totalQty+' 份</span><button class="small-btn" type="button" onclick="copyOverviewStats()">一鍵複製 LINE</button></div></div>'+
     (itemRows.length?'<div class="item-stats-table">'+itemRows.map(([name,qty])=>'<div class="item-stat-row"><span>'+esc(name)+(name.includes('（時價）')?' <em class="market-badge">時價</em>':'')+'</span><b>'+qty+' 份</b></div>').join('')+'</div>':'<div class="loading">目前沒有品項</div>');
 
   const bySeat=new Map();for(const o of list){const st=students.find(s=>s.id===o.student_id),seat=st?.seat_number||Number(o.student_name);if(seat)bySeat.set(seat,{...o,name:st?.name||''})}
@@ -347,6 +359,22 @@ async function loadOverview(){
       (hasMarket?'<button class="small-btn market-btn" onclick="openMarketPriceDialog('+o.id+','+n+')">設定時價</button> ':'')+
       '<button class="small-btn" onclick="togglePaid('+o.id+','+(!o.paid)+')">'+(o.paid?'改未付':'標記付款')+'</button> <button class="small-btn danger" onclick="deleteOrder('+o.id+')">刪除</button></div>':'')+'</div>';
   }).join('')+'</div>';
+}
+async function copyOverviewStats(){
+  if(!latestOverviewCopyText)return toast('目前沒有可複製的統計');
+  try{
+    await navigator.clipboard.writeText(latestOverviewCopyText);
+    toast('統計已複製，可直接貼到 LINE');
+  }catch{
+    const ta=document.createElement('textarea');
+    ta.value=latestOverviewCopyText;
+    ta.setAttribute('readonly','');
+    ta.style.position='fixed';ta.style.opacity='0';ta.style.pointerEvents='none';
+    document.body.appendChild(ta);ta.select();
+    const ok=document.execCommand('copy');
+    ta.remove();
+    toast(ok?'統計已複製，可直接貼到 LINE':'複製失敗，請再試一次');
+  }
 }
 async function openMarketPriceDialog(orderId,seat){
   editingMarketOrderId=orderId;
