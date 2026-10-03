@@ -1,11 +1,11 @@
-const CACHE_NAME="anonymous-mailbox-v1.18.17";
+const CACHE_NAME="anonymous-mailbox-v1.18.18";
 const APP_SHELL=[
   "./",
   "./index.html",
-  "./manifest.webmanifest?v=20261003-12",
-  "./icons/icon-192.png?v=20261003-12",
-  "./icons/icon-512.png?v=20261003-12",
-  "./icons/apple-touch-icon.png?v=20261003-12"
+  "./manifest.webmanifest?v=20261003-13",
+  "./icons/icon-192.png?v=20261003-13",
+  "./icons/icon-512.png?v=20261003-13",
+  "./icons/apple-touch-icon.png?v=20261003-13"
 ];
 
 self.addEventListener("install",event=>{
@@ -80,8 +80,8 @@ self.addEventListener("push",event=>{
   event.waitUntil(
     self.registration.showNotification(payload.title||"匿名信箱",{
       body:payload.body||"你收到一則新的匿名訊息",
-      icon:"./icons/icon-192.png?v=20261003-12",
-      badge:"./icons/icon-192.png?v=20261003-12",
+      icon:"./icons/icon-192.png?v=20261003-13",
+      badge:"./icons/icon-192.png?v=20261003-13",
       tag:payload.tag||"new-anonymous-message",
       renotify:true,
       data:payload.data||{url:"./"}
