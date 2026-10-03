@@ -14,7 +14,7 @@
   window.addEventListener("load",async()=>{
     try{
       const reg=await navigator.serviceWorker.register(
-        "./service-worker.js?v=20261003-01",
+        "./service-worker.js?v=20261003-02",
         {scope:"./",updateViaCache:"none"}
       );
       await reg.update().catch(()=>null);
