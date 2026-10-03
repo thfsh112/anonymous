@@ -1,8 +1,8 @@
-const CACHE_NAME="anonymous-mailbox-v1.18.12";
+const CACHE_NAME="anonymous-mailbox-v1.18.13";
 const APP_SHELL=[
   "./",
   "./index.html",
-  "./manifest.webmanifest?v=20261003-03",
+  "./manifest.webmanifest?v=20261003-04",
   "./icons/icon-192.png",
   "./icons/icon-512.png",
   "./icons/apple-touch-icon.png"
