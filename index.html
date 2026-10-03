@@ -5,9 +5,9 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#0e1b34">
 <title>匿名信箱</title>
-<link rel="manifest" href="./manifest.webmanifest?v=20261003-05">
-<link rel="icon" type="image/png" sizes="192x192" href="./icons/icon-192.png">
-<link rel="apple-touch-icon" sizes="180x180" href="./icons/apple-touch-icon.png">
+<link rel="manifest" href="./manifest.webmanifest?v=20261003-10">
+<link rel="icon" type="image/png" sizes="192x192" href="./icons/icon-192.png?v=20261003-10">
+<link rel="apple-touch-icon" sizes="180x180" href="./icons/apple-touch-icon.png?v=20261003-10">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="匿名信箱">
@@ -3169,7 +3169,7 @@ body{
     </div>
 
     <div class="app-identity-card">
-      <img src="./icons/icon-192.png" alt="App 圖示" class="app-icon-preview">
+      <img src="./icons/icon-192.png?v=20261003-10" alt="App 圖示" class="app-icon-preview">
       <div>
         <strong>匿名信箱</strong>
         <div class="small">桌面圖示已使用指定照片</div>
@@ -5128,7 +5128,7 @@ async function registerPwa(){
   if(!("serviceWorker" in navigator))return null;
   if(!["https:","http:"].includes(location.protocol))return null;
   try{
-    pwaRegistration=await navigator.serviceWorker.register("./service-worker.js?v=20261003-03",{scope:"./",updateViaCache:"none"});
+    pwaRegistration=await navigator.serviceWorker.register("./service-worker.js?v=20261003-10",{scope:"./",updateViaCache:"none"});
     await navigator.serviceWorker.ready;
     try{await pwaRegistration.update()}catch{}
     return pwaRegistration;
