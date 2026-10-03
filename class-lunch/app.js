@@ -95,7 +95,7 @@ async function refresh(){
 async function loadSessions(){
   const [{data:ss,error:se},{data:os,error:oe}]=await Promise.all([
     db.from('meal_sessions').select('id,meal_date,cutoff_at,is_active,menu_template_id,menu_templates(id,name,image_url,active)').eq('is_active',true).gte('meal_date',today()).order('meal_date'),
-    db.from('orders').select('id,meal_session_id,item_name,unit_price,note,paid,created_at,menu_item_id').order('created_at',{ascending:false})
+    db.from('orders').select('id,meal_session_id,item_name,unit_price,note,paid,created_at,menu_item_id').eq('student_id',student.id).order('created_at',{ascending:false})
   ]);
   if(se||oe)return toast((se||oe).message);
   sessions=(ss||[]).filter(x=>x.menu_templates?.active!==false);orders=os||[];$('menuCount').textContent=sessions.length+' 份';
@@ -231,6 +231,7 @@ async function openHistory(){
 
   const{data:history,error}=await db.from('orders')
     .select('id,item_name,unit_price,note,paid,order_date,created_at,meal_session_id,meal_sessions(meal_date,menu_templates(name))')
+    .eq('student_id',student.id)
     .order('order_date',{ascending:false})
     .order('created_at',{ascending:false});
   if(error){$('historyList').innerHTML='<div class="loading">讀取失敗</div>';return toast('歷史訂單讀取失敗：'+error.message)}
