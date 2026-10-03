@@ -1,5 +1,5 @@
 {
-  "id": "./",
+  "id": "/anonymous/",
   "name": "匿名信箱",
   "short_name": "匿名信箱",
   "description": "匿名投稿、狀態查詢與重要日程",
@@ -12,13 +12,13 @@
   "orientation": "portrait-primary",
   "icons": [
     {
-      "src": "./icons/icon-192.png?v=20261003-04",
+      "src": "./icons/icon-192.png?v=20261003-05",
       "sizes": "192x192",
       "type": "image/png",
       "purpose": "any maskable"
     },
     {
-      "src": "./icons/icon-512.png?v=20261003-04",
+      "src": "./icons/icon-512.png?v=20261003-05",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any maskable"
