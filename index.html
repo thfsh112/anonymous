@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#0e1b34">
 <title>匿名信箱</title>
-<link rel="manifest" href="./manifest.webmanifest?v=20261003-14">
+<link rel="manifest" href="./manifest.webmanifest?v=20261003-15">
 <link rel="icon" type="image/png" sizes="192x192" href="./icons/icon-192.png?v=20261003-11">
 <link rel="apple-touch-icon" sizes="180x180" href="./icons/apple-touch-icon.png?v=20261003-11">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -3203,7 +3203,7 @@ body{
 </section>
 </div></div></section>
 </main>
-<button class="version-entry" id="versionEntry" type="button" aria-label="版本資訊">v1.18.10</button>
+<button class="version-entry" id="versionEntry" type="button" aria-label="版本資訊">v1.18.11</button>
 <div class="toast" id="toast"></div>
 <dialog id="storyDialog">
   <div class="modal share-modal">
@@ -3386,7 +3386,7 @@ body{
 import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.112.4/+esm";
 const SUPABASE_URL="https://roynzxilxumfzzuezelg.supabase.co";
 const SUPABASE_PUBLISHABLE_KEY="sb_publishable_nvmHzVjH7bZ8F9cnJYzKCg_PSPlhCXU";
-const supabase=createClient(SUPABASE_URL,SUPABASE_PUBLISHABLE_KEY,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}});
+const supabase=createClient(SUPABASE_URL,SUPABASE_PUBLISHABLE_KEY,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true,storage:window.localStorage,storageKey:"anonymous-auth"}});
 const PUSH_VAPID_PUBLIC_KEY="BIfooHITgKhbwNm9ufy7fUdoyaU46cxxSFFoAOPQrKHJ4RPHzsqYQb9CEMWflB4PlXmpyptPHWl-fvgiWjeW_kE";
 let deferredInstallPrompt=null;
 let pwaRegistration=null;
@@ -5128,7 +5128,7 @@ async function registerPwa(){
   if(!("serviceWorker" in navigator))return null;
   if(!["https:","http:"].includes(location.protocol))return null;
   try{
-    pwaRegistration=await navigator.serviceWorker.register("/anonymous/service-worker.js?v=20261003-14",{scope:"/anonymous/",updateViaCache:"none"});
+    pwaRegistration=await navigator.serviceWorker.register("/anonymous/service-worker.js?v=20261003-15",{scope:"/anonymous/",updateViaCache:"none"});
     await navigator.serviceWorker.ready;
     try{await pwaRegistration.update()}catch{}
     return pwaRegistration;
