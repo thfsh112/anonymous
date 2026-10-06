@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#0e1b34">
 <title>匿名信箱</title>
-<link rel="manifest" href="./manifest.webmanifest?v=20261003-15">
+<link rel="manifest" href="./manifest.webmanifest?v=20261006-16">
 <link rel="icon" type="image/png" sizes="192x192" href="./icons/icon-192.png?v=20261003-11">
 <link rel="apple-touch-icon" sizes="180x180" href="./icons/apple-touch-icon.png?v=20261003-11">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -3203,7 +3203,7 @@ body{
 </section>
 </div></div></section>
 </main>
-<button class="version-entry" id="versionEntry" type="button" aria-label="版本資訊">v1.18.11</button>
+<button class="version-entry" id="versionEntry" type="button" aria-label="版本資訊">v1.18.21</button>
 <div class="toast" id="toast"></div>
 <dialog id="storyDialog">
   <div class="modal share-modal">
@@ -3732,15 +3732,65 @@ $("#messageImageFile").addEventListener("change",e=>{
 });
 $("#messageImageRemoveBtn").addEventListener("click",resetPendingMessageImage);
 
+async function compressPendingMessageImage(file){
+  if(!file||!["image/png","image/jpeg","image/webp"].includes(file.type)){
+    return {blob:file,ext:"jpg",contentType:file?.type||"image/jpeg"};
+  }
+
+  let source=null;
+  let objectUrl="";
+  try{
+    if("createImageBitmap" in window){
+      source=await createImageBitmap(file);
+    }else{
+      objectUrl=URL.createObjectURL(file);
+      source=await new Promise((resolve,reject)=>{
+        const img=new Image();
+        img.onload=()=>resolve(img);
+        img.onerror=reject;
+        img.src=objectUrl;
+      });
+    }
+
+    const width=Number(source.width||source.naturalWidth||0);
+    const height=Number(source.height||source.naturalHeight||0);
+    if(!width||!height){
+      const ext=file.type==="image/png"?"png":file.type==="image/webp"?"webp":"jpg";
+      return {blob:file,ext,contentType:file.type};
+    }
+
+    const maxEdge=2000;
+    const scale=Math.min(1,maxEdge/Math.max(width,height));
+    const canvas=document.createElement("canvas");
+    canvas.width=Math.max(1,Math.round(width*scale));
+    canvas.height=Math.max(1,Math.round(height*scale));
+    const ctx=canvas.getContext("2d",{alpha:false});
+    if(!ctx){
+      const ext=file.type==="image/png"?"png":file.type==="image/webp"?"webp":"jpg";
+      return {blob:file,ext,contentType:file.type};
+    }
+    ctx.drawImage(source,0,0,canvas.width,canvas.height);
+
+    const webp=await new Promise(resolve=>canvas.toBlob(resolve,"image/webp",0.82));
+    if(!webp||webp.size>=file.size){
+      const ext=file.type==="image/png"?"png":file.type==="image/webp"?"webp":"jpg";
+      return {blob:file,ext,contentType:file.type};
+    }
+    return {blob:webp,ext:"webp",contentType:"image/webp"};
+  }finally{
+    try{source?.close?.()}catch{}
+    if(objectUrl)URL.revokeObjectURL(objectUrl);
+  }
+}
+
 async function uploadPendingMessageImage(){
   if(!pendingMessageImage?.file)return null;
-  const file=pendingMessageImage.file;
-  const ext=file.type==="image/png"?"png":file.type==="image/webp"?"webp":"jpg";
-  const path=`submissions/${crypto.randomUUID()}.${ext}`;
-  const {error}=await supabase.storage.from("message-images").upload(path,file,{
-    cacheControl:"3600",
+  const compressed=await compressPendingMessageImage(pendingMessageImage.file);
+  const path=`submissions/${crypto.randomUUID()}.${compressed.ext}`;
+  const {error}=await supabase.storage.from("message-images").upload(path,compressed.blob,{
+    cacheControl:"2592000",
     upsert:false,
-    contentType:file.type
+    contentType:compressed.contentType
   });
   if(error)throw error;
   return path;
@@ -5128,7 +5178,7 @@ async function registerPwa(){
   if(!("serviceWorker" in navigator))return null;
   if(!["https:","http:"].includes(location.protocol))return null;
   try{
-    pwaRegistration=await navigator.serviceWorker.register("/anonymous/service-worker.js?v=20261003-15",{scope:"/anonymous/",updateViaCache:"none"});
+    pwaRegistration=await navigator.serviceWorker.register("/anonymous/service-worker.js?v=20261006-16",{scope:"/anonymous/",updateViaCache:"none"});
     await navigator.serviceWorker.ready;
     try{await pwaRegistration.update()}catch{}
     return pwaRegistration;
